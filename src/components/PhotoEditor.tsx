@@ -74,7 +74,7 @@ export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: 
     <div className="space-y-8">
       <div className="text-center">
         <h2 className="text-3xl font-bold text-gray-800 mb-2">写真を編集</h2>
-        <p className="text-lg text-gray-600">背景を自動で切り抜き、きれいに仕上げます</p>
+        <p className="text-lg text-gray-600">背景色・明るさ・コントラストを調整できます</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
