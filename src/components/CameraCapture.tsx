@@ -1,9 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
-
-const Webcam = dynamic(() => import('react-webcam'), { ssr: false });
+import Webcam from 'react-webcam';
 
 interface CameraCaptureProps {
   selectedSize: string;
