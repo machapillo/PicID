@@ -60,7 +60,8 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
       const margin = Math.round((5 / 25.4) * dpi); // 5mmマージン
       const cols = Math.floor((canvasWidth - margin) / (photoWidthPx + margin));
       const rows = Math.floor((canvasHeight - margin) / (photoHeightPx + margin));
-      const maxPhotos = Math.min(cols * rows, sizeInfo.count);
+      // L版に入るだけ最大枚数配置（countの上限は撤廃）
+      const maxPhotos = Math.max(0, cols) * Math.max(0, rows);
 
       // 中央揃えのための開始位置計算
       const totalWidth = cols * photoWidthPx + (cols - 1) * margin;
@@ -75,8 +76,24 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
         const x = startX + col * (photoWidthPx + margin);
         const y = startY + row * (photoHeightPx + margin);
 
-        // 写真を描画
-        ctx.drawImage(img, x, y, photoWidthPx, photoHeightPx);
+        // アスペクト比維持：ターゲット比にセンタークロップしてから描画
+        const targetRatio = photoWidthPx / photoHeightPx; // < 1 で縦長、> 1 で横長
+        const srcRatio = img.width / img.height;
+        let sx = 0, sy = 0, sw = img.width, sh = img.height;
+        if (srcRatio > targetRatio) {
+          // 画像が横に広い→左右をトリミング
+          sh = img.height;
+          sw = Math.round(sh * targetRatio);
+          sx = Math.round((img.width - sw) / 2);
+          sy = 0;
+        } else if (srcRatio < targetRatio) {
+          // 画像が縦に長い→上下をトリミング
+          sw = img.width;
+          sh = Math.round(sw / targetRatio);
+          sx = 0;
+          sy = Math.round((img.height - sh) / 2);
+        }
+        ctx.drawImage(img, sx, sy, sw, sh, x, y, photoWidthPx, photoHeightPx);
 
         // トンボ（切り取り線）を描画
         ctx.strokeStyle = '#cccccc';
@@ -88,6 +105,7 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
       // レイアウト画像を生成
       const layoutDataUrl = canvas.toDataURL('image/jpeg', 0.9);
       setLayoutImage(layoutDataUrl);
+      setPlacedCount(maxPhotos);
       setIsGenerating(false);
     };
 

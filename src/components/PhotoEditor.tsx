@@ -9,14 +9,10 @@ interface PhotoEditorProps {
   onBack: () => void;
 }
 
-const BACKGROUND_COLORS = {
-  white: { name: '白', color: '#ffffff', class: 'bg-white' },
-  blue: { name: '青', color: '#e0f2fe', class: 'bg-sky-100' }, // A bit more vibrant blue
-  gray: { name: 'グレー', color: '#f3f4f6', class: 'bg-gray-100' },
-};
+// 背景色は固定（白）にします
+const DEFAULT_BG = '#ffffff';
 
 export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: PhotoEditorProps) {
-  const [selectedBackground, setSelectedBackground] = useState('white');
   const [brightness, setBrightness] = useState(100);
   const [contrast, setContrast] = useState(100);
   const [isProcessing, setIsProcessing] = useState(true);
@@ -45,9 +41,8 @@ export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: 
     canvas.width = img.width;
     canvas.height = img.height;
 
-    // Fill background color
-    const bgColor = BACKGROUND_COLORS[selectedBackground as keyof typeof BACKGROUND_COLORS].color;
-    ctx.fillStyle = bgColor;
+    // 背景は常に白
+    ctx.fillStyle = DEFAULT_BG;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Apply filters and draw the image
@@ -58,7 +53,7 @@ export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: 
     setProcessedImage(finalImage);
     setIsProcessing(false);
 
-  }, [imageSrc, selectedBackground, brightness, contrast]);
+  }, [imageSrc, brightness, contrast]);
 
   useEffect(() => {
     processImage();
@@ -74,14 +69,14 @@ export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: 
     <div className="space-y-8">
       <div className="text-center">
         <h2 className="text-3xl font-bold text-gray-800 mb-2">写真を編集</h2>
-        <p className="text-lg text-gray-600">背景色・明るさ・コントラストを調整できます</p>
+        <p className="text-lg text-gray-600">明るさ・コントラストを調整できます</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
         <div className="space-y-4">
           <h3 className="text-xl font-bold text-gray-800 text-center">プレビュー</h3>
           <div className="relative max-w-md mx-auto">
-            <div className={`aspect-[3/4] rounded-2xl overflow-hidden shadow-lg ${BACKGROUND_COLORS[selectedBackground as keyof typeof BACKGROUND_COLORS].class}`}>
+            <div className={`aspect-[3/4] rounded-2xl overflow-hidden shadow-lg bg-white`}>
               {isProcessing && (
                 <div className="absolute inset-0 flex items-center justify-center z-10">
                    <div className="text-center">
@@ -103,23 +98,6 @@ export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: 
 
         <div className="space-y-6">
            <h3 className="text-xl font-bold text-gray-800">編集オプション</h3>
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">背景色</label>
-            <div className="grid grid-cols-3 gap-3">
-              {Object.entries(BACKGROUND_COLORS).map(([key, bg]) => (
-                <button
-                  key={key}
-                  onClick={() => setSelectedBackground(key)}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    selectedBackground === key ? 'border-ocean-blue shadow-lg' : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className={`w-full h-12 rounded-lg ${bg.class} border border-gray-300 mb-2`}></div>
-                  <span className="text-sm font-medium text-gray-700">{bg.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
 
           <div className="space-y-3">
             <label className="block text-sm font-medium text-gray-700">明るさ: {brightness}%</label>
@@ -140,7 +118,7 @@ export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: 
           </div>
 
           <button
-            onClick={() => { setBrightness(100); setContrast(100); setSelectedBackground('white'); }}
+            onClick={() => { setBrightness(100); setContrast(100); }}
             className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium"
           >
             🔄 設定をリセット
