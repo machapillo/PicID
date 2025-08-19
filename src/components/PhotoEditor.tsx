@@ -3,8 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 interface PhotoEditorProps {
-  personImageSrc: string;
-  backgroundImageSrc: string;
+  imageSrc: string;
   selectedSize: string;
   onEdit: (imageSrc: string) => void;
   onBack: () => void;
@@ -16,9 +15,7 @@ const BACKGROUND_COLORS = {
   gray: { name: 'グレー', color: '#f3f4f6', class: 'bg-gray-100' },
 };
 
-const REMOVAL_THRESHOLD = 45; // Sensitivity for background removal (0-255)
-
-export default function PhotoEditor({ personImageSrc, backgroundImageSrc, selectedSize, onEdit, onBack }: PhotoEditorProps) {
+export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: PhotoEditorProps) {
   const [selectedBackground, setSelectedBackground] = useState('white');
   const [brightness, setBrightness] = useState(100);
   const [contrast, setContrast] = useState(100);
@@ -26,93 +23,46 @@ export default function PhotoEditor({ personImageSrc, backgroundImageSrc, select
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
 
-  const processImages = useCallback(async () => {
-    if (!canvasRef.current || !personImageSrc || !backgroundImageSrc) return;
+  const processImage = useCallback(async () => {
+    if (!canvasRef.current || !imageSrc) return;
 
     setIsProcessing(true);
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const personImg = new Image();
-    const backgroundImg = new Image();
+    const img = new Image();
 
     // Promise to handle image loading
-    const loadImage = (img: HTMLImageElement, src: string) => 
+    const loadImage = (imgEl: HTMLImageElement, src: string) => 
       new Promise<void>((resolve) => { 
-        img.onload = () => resolve();
-        img.src = src;
+        imgEl.onload = () => resolve();
+        imgEl.src = src;
       });
 
-    await Promise.all([loadImage(personImg, personImageSrc), loadImage(backgroundImg, backgroundImageSrc)]);
+    await loadImage(img, imageSrc);
 
-    canvas.width = personImg.width;
-    canvas.height = personImg.height;
+    canvas.width = img.width;
+    canvas.height = img.height;
 
-    // Get pixel data
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-    if (!tempCtx) return;
-
-    tempCtx.drawImage(personImg, 0, 0);
-    const personData = tempCtx.getImageData(0, 0, canvas.width, canvas.height);
-    
-    tempCtx.drawImage(backgroundImg, 0, 0);
-    const bgData = tempCtx.getImageData(0, 0, canvas.width, canvas.height);
-
-    const resultData = ctx.createImageData(canvas.width, canvas.height);
-
-    // Pixel-level comparison
-    for (let i = 0; i < personData.data.length; i += 4) {
-      const r1 = personData.data[i];
-      const g1 = personData.data[i + 1];
-      const b1 = personData.data[i + 2];
-
-      const r2 = bgData.data[i];
-      const g2 = bgData.data[i + 1];
-      const b2 = bgData.data[i + 2];
-
-      const diff = Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(g1 - g2, 2) + Math.pow(b1 - b2, 2));
-
-      if (diff > REMOVAL_THRESHOLD) {
-        // Foreground (person)
-        resultData.data[i] = r1;
-        resultData.data[i + 1] = g1;
-        resultData.data[i + 2] = b1;
-        resultData.data[i + 3] = 255; // Alpha
-      } else {
-        // Background
-        resultData.data[i + 3] = 0; // Transparent
-      }
-    }
-
-    // Draw the result onto the main canvas with a new background color
+    // Fill background color
     const bgColor = BACKGROUND_COLORS[selectedBackground as keyof typeof BACKGROUND_COLORS].color;
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.putImageData(resultData, 0, 0);
 
-    // Create a temporary canvas to apply filters, as filters don't work on transparent pixels well
-    const filterCanvas = document.createElement('canvas');
-    filterCanvas.width = canvas.width;
-    filterCanvas.height = canvas.height;
-    const filterCtx = filterCanvas.getContext('2d');
-    if (!filterCtx) return;
+    // Apply filters and draw the image
+    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-    filterCtx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
-    filterCtx.drawImage(canvas, 0, 0);
-
-    const finalImage = filterCanvas.toDataURL('image/png'); // Use PNG for transparency
+    const finalImage = canvas.toDataURL('image/jpeg');
     setProcessedImage(finalImage);
     setIsProcessing(false);
 
-  }, [personImageSrc, backgroundImageSrc, selectedBackground, brightness, contrast]);
+  }, [imageSrc, selectedBackground, brightness, contrast]);
 
   useEffect(() => {
-    processImages();
-  }, [processImages]);
+    processImage();
+  }, [processImage]);
 
   const handleConfirm = () => {
     if (processedImage) {

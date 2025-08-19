@@ -5,7 +5,7 @@ import Webcam from 'react-webcam';
 
 interface CameraCaptureProps {
   selectedSize: string;
-  onCapture: (images: { personImage: string; backgroundImage: string }) => void;
+  onCapture: (image: string) => void;
   onBack: () => void;
 }
 
@@ -18,9 +18,7 @@ const PHOTO_SIZES = {
 
 export default function CameraCapture({ selectedSize, onCapture, onBack }: CameraCaptureProps) {
   const webcamRef = useRef<any>(null);
-  const [captureStep, setCaptureStep] = useState<'background' | 'person' | 'captured'>('background');
-  const [backgroundImageSrc, setBackgroundImageSrc] = useState<string>('');
-  const [personImageSrc, setPersonImageSrc] = useState<string>('');
+  const [imageSrc, setImageSrc] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
@@ -43,58 +41,35 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
           setError('写真の撮影に失敗しました。もう一度お試しください。');
           return;
         }
-
-        if (captureStep === 'background') {
-          setBackgroundImageSrc(imageSrc);
-          setCaptureStep('person');
-        } else if (captureStep === 'person') {
-          setPersonImageSrc(imageSrc);
-          setCaptureStep('captured');
-        }
+        setImageSrc(imageSrc);
       } catch (err) {
         setError('カメラエラーが発生しました。');
       }
     }
-  }, [webcamRef, captureStep]);
+  }, [webcamRef]);
 
     const retake = useCallback(() => {
-    setPersonImageSrc('');
-    setCaptureStep('person');
-    setError('');
-  }, []);
-
-  const retakeBackground = useCallback(() => {
-    setBackgroundImageSrc('');
-    setPersonImageSrc('');
-    setCaptureStep('background');
+    setImageSrc('');
     setError('');
   }, []);
 
     const confirm = useCallback(() => {
-    if (personImageSrc && backgroundImageSrc) {
-      onCapture({ personImage: personImageSrc, backgroundImage: backgroundImageSrc });
+    if (imageSrc) {
+      onCapture(imageSrc);
     }
-  }, [personImageSrc, backgroundImageSrc, onCapture]);
+  }, [imageSrc, onCapture]);
 
   return (
     <div className="space-y-8">
       <div className="text-center">
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">
-          {captureStep === 'background' && 'ステップ1: 背景を撮影'}
-          {captureStep === 'person' && 'ステップ2: 人物を撮影'}
-          {captureStep === 'captured' && 'ステップ3: 写真を確認'}
-        </h2>
-                <p className="text-lg text-gray-600 mb-4">
-          {captureStep === 'background' && 'まず背景だけを撮影します。フレームから出て、下のボタンを押してください。'}
-          {captureStep === 'person' && '次に人物を撮影します。フレームの中央に入り、準備ができたらボタンを押してください。'}
-          {captureStep === 'captured' && '撮影した写真を確認してください。'}
-        </p>
+                <h2 className="text-3xl font-bold text-gray-800 mb-2">写真を撮影</h2>
+                <p className="text-lg text-gray-600 mb-4">フレーム中央に顔を合わせ、準備ができたら撮影してください。</p>
       </div>
 
       {/* 撮影エリア */}
       <div className="max-w-md mx-auto">
         <div className="relative aspect-[3/4] bg-gray-100 rounded-2xl overflow-hidden shadow-lg">
-          {captureStep !== 'captured' ? (
+          {!imageSrc ? (
             <>
               {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-200 z-10">
@@ -132,16 +107,14 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
                   
                   {/* ガイドテキスト */}
                   <div className="absolute bottom-4 left-4 right-4 text-center">
-                                      <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-lg text-sm">
-                    {captureStep === 'person' ? '顔をガイドラインに合わせてください' : '背景だけが写るようにしてください'}
-                  </div>
+                                      <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-lg text-sm">顔をガイドラインに合わせてください</div>
                   </div>
                 </div>
               </div>
             </>
           ) : (
             <img
-              src={personImageSrc}
+              src={imageSrc}
               alt="撮影した写真"
               className="w-full h-full object-cover"
             />
@@ -157,12 +130,12 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
       </div>
 
       {/* 撮影のヒント */}
-      {captureStep !== 'captured' && !error && (
+      {!imageSrc && !error && (
         <div className="max-w-2xl mx-auto bg-blue-50 p-6 rounded-xl">
           <h3 className="font-bold text-lg text-gray-800 mb-3">📸 撮影のコツ</h3>
           <ul className="space-y-2 text-gray-700">
             <li>• 明るい場所で撮影してください</li>
-            <li>• {captureStep === 'background' ? '背景は無地で、物が写らないようにしてください' : '白い壁の前に立ってください'}</li>
+            <li>• 白い壁の前に立ってください</li>
             <li>• 正面を向いて、肩を平行に保ってください</li>
             <li>• 表情は自然な笑顔または真顔で</li>
           </ul>
@@ -171,7 +144,7 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
 
       {/* 操作ボタン */}
       <div className="flex justify-center gap-4">
-        {captureStep !== 'captured' ? (
+        {!imageSrc ? (
           <>
             <button
               onClick={onBack}
@@ -184,22 +157,16 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
               disabled={isLoading || !!error}
               className="px-8 py-3 bg-ocean-blue text-white rounded-xl hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {captureStep === 'background' ? '背景を撮影' : '📷 撮影する'}
+              📷 撮影する
             </button>
           </>
         ) : (
           <>
-                        <button
-              onClick={retakeBackground}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium text-sm"
-            >
-              背景から撮り直す
-            </button>
             <button
               onClick={retake}
               className="px-8 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium"
             >
-              🔄 人物を撮り直す
+              🔄 撮り直す
             </button>
             <button
               onClick={confirm}

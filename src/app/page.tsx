@@ -11,8 +11,7 @@ type AppStep = 'size' | 'camera' | 'editor' | 'layout';
 export default function Home() {
   const [currentStep, setCurrentStep] = useState<AppStep>('size');
   const [selectedSize, setSelectedSize] = useState<string>('');
-    const [personImage, setPersonImage] = useState<string>('');
-  const [backgroundImage, setBackgroundImage] = useState<string>('');
+  const [capturedImage, setCapturedImage] = useState<string>('');
   const [editedImage, setEditedImage] = useState<string>('');
 
   const handleSizeSelect = (size: string) => {
@@ -20,9 +19,8 @@ export default function Home() {
     setCurrentStep('camera');
   };
 
-    const handleCapture = (images: { personImage: string; backgroundImage: string }) => {
-    setPersonImage(images.personImage);
-    setBackgroundImage(images.backgroundImage);
+  const handleCapture = (image: string) => {
+    setCapturedImage(image);
     setCurrentStep('editor');
   };
 
@@ -104,9 +102,8 @@ export default function Home() {
           )}
 
           {currentStep === 'editor' && (
-                        <PhotoEditor
-              personImageSrc={personImage}
-              backgroundImageSrc={backgroundImage}
+            <PhotoEditor
+              imageSrc={capturedImage}
               selectedSize={selectedSize}
               onEdit={handleEdit}
               onBack={handleBack}
