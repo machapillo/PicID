@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pashatto Print - 証明写真アプリ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .ocean-gradient {
+            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 50%, #0284c7 100%);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+    <div class="container mx-auto px-4 py-8">
+        <!-- ヘッダー -->
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-transparent bg-clip-text ocean-gradient mb-4">
+                Pashatto Print
+            </h1>
+            <p class="text-gray-600 text-lg">
+                いつでも、どこでも、私の証明写真スタジオ
+            </p>
+        </div>
+
+        <!-- サイズ選択 -->
+        <div class="space-y-8" id="sizeSelector">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">
+                    証明写真のサイズを選択
+                </h2>
+                <p class="text-gray-600 text-lg">
+                    用途に応じて最適なサイズをお選びください
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <button onclick="selectSize('resume')" class="p-6 border-2 border-blue-200 bg-blue-50 rounded-xl transition-all duration-300 transform hover:scale-105 hover:border-blue-400">
+                    <div class="text-left">
+                        <h3 class="font-bold text-xl text-gray-800 mb-2">履歴書用</h3>
+                        <p class="text-gray-600 mb-3">就職活動・転職活動に</p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-2xl font-bold text-blue-600">40 × 30 mm</span>
+                            <div class="w-12 h-16 bg-white border-2 border-gray-300 rounded shadow-sm flex items-center justify-center">
+                                <div class="bg-gray-200 rounded" style="width: 89%; height: 86%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </button>
+
+                <button onclick="selectSize('passport')" class="p-6 border-2 border-green-200 bg-green-50 rounded-xl transition-all duration-300 transform hover:scale-105 hover:border-green-400">
+                    <div class="text-left">
+                        <h3 class="font-bold text-xl text-gray-800 mb-2">パスポート用</h3>
+                        <p class="text-gray-600 mb-3">海外渡航申請に</p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-2xl font-bold text-green-600">45 × 35 mm</span>
+                            <div class="w-12 h-16 bg-white border-2 border-gray-300 rounded shadow-sm flex items-center justify-center">
+                                <div class="bg-gray-200 rounded" style="width: 100%; height: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </button>
+
+                <button onclick="selectSize('license')" class="p-6 border-2 border-orange-200 bg-orange-50 rounded-xl transition-all duration-300 transform hover:scale-105 hover:border-orange-400">
+                    <div class="text-left">
+                        <h3 class="font-bold text-xl text-gray-800 mb-2">運転免許証用</h3>
+                        <p class="text-gray-600 mb-3">免許証更新・新規取得に</p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-2xl font-bold text-orange-600">30 × 24 mm</span>
+                            <div class="w-12 h-16 bg-white border-2 border-gray-300 rounded shadow-sm flex items-center justify-center">
+                                <div class="bg-gray-200 rounded" style="width: 67%; height: 69%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </button>
+
+                <button onclick="selectSize('mynumber')" class="p-6 border-2 border-purple-200 bg-purple-50 rounded-xl transition-all duration-300 transform hover:scale-105 hover:border-purple-400">
+                    <div class="text-left">
+                        <h3 class="font-bold text-xl text-gray-800 mb-2">マイナンバーカード用</h3>
+                        <p class="text-gray-600 mb-3">マイナンバーカード申請に</p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-2xl font-bold text-purple-600">45 × 35 mm</span>
+                            <div class="w-12 h-16 bg-white border-2 border-gray-300 rounded shadow-sm flex items-center justify-center">
+                                <div class="bg-gray-200 rounded" style="width: 100%; height: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </button>
+            </div>
+
+            <div class="text-center text-sm text-gray-500 max-w-2xl mx-auto">
+                <p>
+                    ※ 選択したサイズに応じて、撮影時のガイドが自動調整されます<br/>
+                    ※ L版用紙（89mm × 127mm）に最適な枚数でレイアウトされます
+                </p>
+            </div>
+        </div>
+
+        <!-- カメラ画面 -->
+        <div class="space-y-8 hidden" id="cameraScreen">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">写真を撮影</h2>
+                <p class="text-lg text-gray-600 mb-4" id="sizeInfo"></p>
+            </div>
+
+            <div class="max-w-md mx-auto">
+                <div class="relative aspect-[3/4] bg-gray-100 rounded-2xl overflow-hidden shadow-lg">
+                    <video id="video" class="w-full h-full object-cover" autoplay></video>
+                    <canvas id="canvas" class="w-full h-full object-cover hidden"></canvas>
+                    
+                    <!-- 撮影ガイド -->
+                    <div class="absolute inset-0 pointer-events-none">
+                        <div class="relative w-full h-full">
+                            <div class="absolute top-1/4 left-1/2 transform -translate-x-1/2 w-48 h-64 border-2 border-white border-dashed rounded-lg opacity-70">
+                                <div class="absolute top-4 left-1/2 transform -translate-x-1/2 w-32 h-40 border border-white rounded-full opacity-50"></div>
+                                <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-40 h-8 border border-white rounded opacity-30"></div>
+                            </div>
+                            <div class="absolute bottom-4 left-4 right-4 text-center">
+                                <div class="bg-black bg-opacity-50 text-white px-3 py-2 rounded-lg text-sm">
+                                    顔をガイドラインに合わせてください
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="max-w-2xl mx-auto bg-blue-50 p-6 rounded-xl">
+                <h3 class="font-bold text-lg text-gray-800 mb-3">📸 撮影のコツ</h3>
+                <ul class="space-y-2 text-gray-700">
+                    <li>• 明るい場所で撮影してください</li>
+                    <li>• 白い壁の前に立ってください</li>
+                    <li>• 正面を向いて、肩を平行に保ってください</li>
+                    <li>• 表情は自然な笑顔または真顔で</li>
+                </ul>
+            </div>
+
+            <div class="flex justify-center gap-4">
+                <button onclick="backToSize()" class="px-8 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium">
+                    ← 戻る
+                </button>
+                <button onclick="capture()" id="captureBtn" class="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium">
+                    📷 撮影する
+                </button>
+                <button onclick="retake()" id="retakeBtn" class="px-8 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium hidden">
+                    🔄 撮り直す
+                </button>
+                <button onclick="confirm()" id="confirmBtn" class="px-8 py-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors font-medium hidden">
+                    ✓ この写真で決定
+                </button>
+            </div>
+        </div>
+
+        <!-- 完了画面 -->
+        <div class="space-y-8 hidden" id="completeScreen">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">撮影完了！</h2>
+                <p class="text-lg text-gray-600">証明写真の撮影が完了しました</p>
+            </div>
+
+            <div class="max-w-md mx-auto">
+                <div class="bg-white p-4 rounded-2xl shadow-lg border">
+                    <img id="finalImage" src="" alt="撮影した写真" class="w-full h-auto rounded-lg">
+                </div>
+            </div>
+
+            <div class="max-w-2xl mx-auto bg-green-50 p-6 rounded-xl">
+                <h3 class="font-bold text-lg text-gray-800 mb-3">🖨️ 印刷ガイド</h3>
+                <div class="space-y-3 text-gray-700">
+                    <div>
+                        <h4 class="font-semibold">自宅プリンターの場合：</h4>
+                        <ul class="ml-4 space-y-1 text-sm">
+                            <li>• 用紙設定：L版（89mm × 127mm）</li>
+                            <li>• 印刷品質：高品質または写真品質</li>
+                            <li>• 用紙種類：写真用紙（光沢またはマット）</li>
+                            <li>• 余白設定：余白なし（フチなし印刷）</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold">コンビニプリントの場合：</h4>
+                        <ul class="ml-4 space-y-1 text-sm">
+                            <li>• USBメモリやスマホアプリで画像を持参</li>
+                            <li>• L版サイズを選択</li>
+                            <li>• 写真用紙で印刷</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-center gap-4">
+                <button onclick="downloadImage()" class="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium">
+                    💾 画像をダウンロード
+                </button>
+                <button onclick="startOver()" class="px-8 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium">
+                    🔄 最初からやり直す
+                </button>
+            </div>
+
+            <div class="text-center">
+                <div class="inline-flex items-center px-6 py-3 bg-green-100 text-green-800 rounded-xl">
+                    <span class="text-2xl mr-2">🎉</span>
+                    <span class="font-medium">証明写真の作成が完了しました！</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedPhotoSize = '';
+        let video, canvas, capturedImage;
+        
+        const photoSizes = {
+            resume: { name: '履歴書用', width: 40, height: 30, count: 4 },
+            passport: { name: 'パスポート用', width: 45, height: 35, count: 2 },
+            license: { name: '運転免許証用', width: 30, height: 24, count: 6 },
+            mynumber: { name: 'マイナンバーカード用', width: 45, height: 35, count: 2 }
+        };
+
+        function selectSize(size) {
+            selectedPhotoSize = size;
+            const sizeInfo = photoSizes[size];
+            document.getElementById('sizeInfo').textContent = `${sizeInfo.name} (${sizeInfo.width}mm × ${sizeInfo.height}mm)`;
+            
+            document.getElementById('sizeSelector').classList.add('hidden');
+            document.getElementById('cameraScreen').classList.remove('hidden');
+            
+            startCamera();
+        }
+
+        function backToSize() {
+            document.getElementById('cameraScreen').classList.add('hidden');
+            document.getElementById('sizeSelector').classList.remove('hidden');
+            stopCamera();
+        }
+
+        function startCamera() {
+            video = document.getElementById('video');
+            canvas = document.getElementById('canvas');
+            
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'user',
+                    width: 480,
+                    height: 640
+                } 
+            })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                alert('カメラにアクセスできません。カメラの許可を確認してください。');
+            });
+        }
+
+        function stopCamera() {
+            if (video && video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        function capture() {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0);
+            
+            capturedImage = canvas.toDataURL('image/jpeg', 0.9);
+            
+            video.classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            document.getElementById('captureBtn').classList.add('hidden');
+            document.getElementById('retakeBtn').classList.remove('hidden');
+            document.getElementById('confirmBtn').classList.remove('hidden');
+        }
+
+        function retake() {
+            video.classList.remove('hidden');
+            canvas.classList.add('hidden');
+            
+            document.getElementById('captureBtn').classList.remove('hidden');
+            document.getElementById('retakeBtn').classList.add('hidden');
+            document.getElementById('confirmBtn').classList.add('hidden');
+        }
+
+        function confirm() {
+            document.getElementById('cameraScreen').classList.add('hidden');
+            document.getElementById('completeScreen').classList.remove('hidden');
+            document.getElementById('finalImage').src = capturedImage;
+            stopCamera();
+        }
+
+        function downloadImage() {
+            const link = document.createElement('a');
+            const sizeInfo = photoSizes[selectedPhotoSize];
+            link.download = `証明写真_${sizeInfo.name}_${new Date().toISOString().split('T')[0]}.jpg`;
+            link.href = capturedImage;
+            link.click();
+        }
+
+        function startOver() {
+            document.getElementById('completeScreen').classList.add('hidden');
+            document.getElementById('sizeSelector').classList.remove('hidden');
+            selectedPhotoSize = '';
+            capturedImage = '';
+        }
+    </script>
+</body>
+</html>

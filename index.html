@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>証明写真メーカー</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <main class="container">
+        <!-- Step 1: Size Selection -->
+        <section id="size-selection-section" class="step-section active">
+            <h2 class="section-title">1. サイズを選択</h2>
+            <div class="size-options">
+                <button class="size-btn" data-width="30" data-height="40">履歴書 (40x30mm)</button>
+                <button class="size-btn" data-width="35" data-height="45">パスポート (45x35mm)</button>
+                <button class="size-btn" data-width="50" data-height="50">ビザ (50x50mm)</button>
+            </div>
+        </section>
+
+        <!-- Step 2: Capture -->
+        <section id="capture-section" class="step-section" style="display: none;">
+            <h2 class="section-title">2. 写真を撮影</h2>
+            <p id="capture-instruction">まず、背景だけを撮影します。</p>
+            <div class="camera-container">
+                <video id="webcam" autoplay playsinline></video>
+                <canvas id="capture-canvas" style="display:none;"></canvas>
+            </div>
+            <div class="controls">
+                <button id="capture-btn">撮影</button>
+                <button id="back-to-size-btn">サイズ選択に戻る</button>
+            </div>
+        </section>
+
+        <!-- Step 3: Edit -->
+        <section id="edit-section" class="step-section" style="display: none;">
+            <h2 class="section-title">3. 写真を編集</h2>
+            <div class="editor-container">
+                <div class="preview-container">
+                    <h3>プレビュー</h3>
+                    <canvas id="editor-canvas"></canvas>
+                </div>
+                <div class="edit-controls">
+                    <h3>編集オプション</h3>
+                    <label for="bg-color">背景色:</label>
+                    <select id="bg-color">
+                        <option value="#FFFFFF">白</option>
+                        <option value="#EBF4FF">青</option>
+                        <option value="#F3F4F6">グレー</option>
+                    </select>
+                    <label for="brightness">明るさ: <span id="brightness-value">100</span>%</label>
+                    <input type="range" id="brightness" min="50" max="150" value="100">
+                    <label for="contrast">コントラスト: <span id="contrast-value">100</span>%</label>
+                    <input type="range" id="contrast" min="50" max="150" value="100">
+                    <button id="reset-btn">リセット</button>
+                </div>
+            </div>
+             <div class="controls">
+                <button id="confirm-edit-btn">この写真で決定</button>
+                <button id="back-to-capture-btn">再撮影</button>
+            </div>
+        </section>
+
+        <!-- Step 4: Layout & Download -->
+        <section id="layout-section" class="step-section" style="display: none;">
+            <h2 class="section-title">4. ダウンロード</h2>
+            <div id="photo-layout-container"></div>
+            <div class="controls">
+                <button id="download-btn">PDFをダウンロード</button>
+                <button id="back-to-edit-btn">編集に戻る</button>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pashatto Print - 証明写真アプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #b3e5fc 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .title {
+            font-size: 3rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #0891b2, #06b6d4, #0284c7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
+        }
+        
+        .subtitle {
+            color: #6b7280;
+            font-size: 1.2rem;
+        }
+        
+        .size-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            max-width: 800px;
+            margin: 0 auto 40px;
+        }
+        
+        .size-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .size-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1);
+            border-color: #0891b2;
+        }
+        
+        .size-card.selected {
+            border-color: #0891b2;
+            background: #f0f9ff;
+        }
+        
+        .size-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+        
+        .size-desc {
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+        
+        .size-dimensions {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #0891b2;
+        }
+        
+        .camera-container {
+            max-width: 400px;
+            margin: 0 auto 20px;
+        }
+        
+        .video-container {
+            position: relative;
+            aspect-ratio: 9/12;
+            background: #f3f4f6;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        #video, #canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .guide-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+        
+        .face-guide {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px;
+            height: 240px;
+            border: 2px dashed white;
+            border-radius: 8px;
+            opacity: 0.7;
+        }
+        
+        .face-oval {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 150px;
+            border: 1px solid white;
+            border-radius: 50%;
+            opacity: 0.5;
+        }
+        
+        .shoulder-guide {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 30px;
+            border: 1px solid white;
+            border-radius: 4px;
+            opacity: 0.3;
+        }
+        
+        .guide-text {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
+            text-align: center;
+        }
+        
+        .guide-message {
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .tips-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 40px auto;
+            max-width: 600px;
+        }
+        
+        .tips-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 16px;
+        }
+        
+        .tips-list {
+            list-style: none;
+            color: #4b5563;
+        }
+        
+        .tips-list li {
+            margin-bottom: 8px;
+        }
+        
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+            padding: 0 20px;
+        }
+        
+        .camera-buttons {
+            position: sticky;
+            bottom: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 16px;
+            margin: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #0891b2;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0e7490;
+        }
+        
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .section {
+            margin-bottom: 60px;
+        }
+        
+        .section-title {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #1f2937;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        
+        .section-subtitle {
+            color: #6b7280;
+            text-align: center;
+            font-size: 1.1rem;
+            margin-bottom: 40px;
+        }
+        
+        .result-image {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            padding: 16px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .result-image img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        
+        .success-message {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 16px 24px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 40px auto;
+            max-width: 500px;
+            font-weight: 600;
+        }
+        
+        .edit-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .edit-preview {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        
+        .edit-controls {
+            padding: 20px;
+        }
+        
+        .edit-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 20px;
+        }
+        
+        .background-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .bg-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .bg-option:hover {
+            border-color: #0891b2;
+            transform: translateY(-2px);
+        }
+        
+        .bg-option.selected {
+            border-color: #0891b2;
+            background: #f0f9ff;
+            box-shadow: 0 4px 12px rgba(8, 145, 178, 0.2);
+        }
+        
+        .bg-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .bg-option span {
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .edit-tips {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .edit-tips h4 {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 12px;
+        }
+        
+        .edit-tips ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .edit-tips li {
+            margin-bottom: 8px;
+            color: #4b5563;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+                padding-bottom: 120px;
+            }
+            
+            .title {
+                font-size: 2rem;
+            }
+            
+            .size-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            
+            .camera-container {
+                max-width: 90vw;
+                margin: 0 auto 10px;
+            }
+            
+            .video-container {
+                aspect-ratio: 3/4;
+                margin-bottom: 10px;
+            }
+            
+            .button-group {
+                flex-direction: row;
+                justify-content: center;
+                gap: 12px;
+                margin: 10px 0;
+            }
+            
+            .btn {
+                flex: 1;
+                min-width: 0;
+                max-width: 140px;
+                padding: 10px 16px;
+                font-size: 0.9rem;
+            }
+            
+            .camera-buttons {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                margin: 0;
+                border-radius: 16px 16px 0 0;
+                padding: 20px;
+                background: rgba(255, 255, 255, 0.98);
+                backdrop-filter: blur(10px);
+                box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+                z-index: 1000;
+            }
+            
+            .tips-box {
+                margin: 20px 16px;
+                padding: 16px;
+            }
+            
+            .face-guide {
+                width: 160px;
+                height: 200px;
+                top: 15%;
+            }
+            
+            .face-oval {
+                width: 100px;
+                height: 130px;
+                top: 15px;
+            }
+            
+            .shoulder-guide {
+                width: 130px;
+                height: 25px;
+                bottom: 15px;
+            }
+            
+            .section {
+                margin-bottom: 30px;
+            }
+            
+            .section-title {
+                font-size: 1.5rem;
+            }
+            
+            .section-subtitle {
+                font-size: 1rem;
+                margin-bottom: 20px;
+            }
+            
+            .edit-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .edit-controls {
+                padding: 16px;
+            }
+            
+            .background-options {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+            
+            .bg-option {
+                padding: 12px;
+            }
+            
+            .bg-preview {
+                width: 50px;
+                height: 50px;
+            }
+            
+            .edit-tips {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <div class="header">
+            <h1 class="title">Pashatto Print</h1>
+            <p class="subtitle">いつでも、どこでも、私の証明写真スタジオ</p>
+        </div>
+
+        <!-- サイズ選択画面 -->
+        <div id="sizeSelector" class="section">
+            <h2 class="section-title">証明写真のサイズを選択</h2>
+            <p class="section-subtitle">用途に応じて最適なサイズをお選びください</p>
+            
+            <div class="size-grid">
+                <div class="size-card" onclick="selectSize('resume')">
+                    <div class="size-name">履歴書用</div>
+                    <div class="size-desc">就職活動・転職活動に</div>
+                    <div class="size-dimensions">40 × 30 mm</div>
+                </div>
+                
+                <div class="size-card" onclick="selectSize('passport')">
+                    <div class="size-name">パスポート用</div>
+                    <div class="size-desc">海外渡航申請に</div>
+                    <div class="size-dimensions">45 × 35 mm</div>
+                </div>
+                
+                <div class="size-card" onclick="selectSize('license')">
+                    <div class="size-name">運転免許証用</div>
+                    <div class="size-desc">免許証更新・新規取得に</div>
+                    <div class="size-dimensions">30 × 24 mm</div>
+                </div>
+                
+                <div class="size-card" onclick="selectSize('mynumber')">
+                    <div class="size-name">マイナンバーカード用</div>
+                    <div class="size-desc">マイナンバーカード申請に</div>
+                    <div class="size-dimensions">45 × 35 mm</div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; color: #6b7280; font-size: 0.9rem; max-width: 600px; margin: 0 auto;">
+                <p>※ 選択したサイズに応じて、撮影時のガイドが自動調整されます<br>
+                ※ L版用紙（89mm × 127mm）に最適な枚数でレイアウトされます</p>
+            </div>
+        </div>
+
+        <!-- カメラ撮影画面 -->
+        <div id="cameraScreen" class="section hidden">
+            <h2 class="section-title">写真を撮影</h2>
+            <p class="section-subtitle" id="sizeInfo"></p>
+            
+            <div class="camera-container">
+                <div class="video-container">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas" class="hidden"></canvas>
+                    
+                    <div class="guide-overlay">
+                        <div class="face-guide">
+                            <div class="face-oval"></div>
+                            <div class="shoulder-guide"></div>
+                        </div>
+                        <div class="guide-text">
+                            <div class="guide-message">顔をガイドラインに合わせてください</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tips-box">
+                <div class="tips-title">📸 撮影のコツ</div>
+                <ul class="tips-list">
+                    <li>• 明るい場所で撮影してください</li>
+                    <li>• 白い壁の前に立ってください</li>
+                    <li>• 正面を向いて、肩を平行に保ってください</li>
+                    <li>• 表情は自然な笑顔または真顔で</li>
+                </ul>
+            </div>
+            
+            <div class="camera-buttons">
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="backToSize()">← 戻る</button>
+                    <button class="btn btn-primary" id="captureBtn" onclick="capture()">📷 撮影</button>
+                    <button class="btn btn-secondary hidden" id="retakeBtn" onclick="retake()">🔄 撮り直し</button>
+                    <button class="btn btn-success hidden" id="confirmBtn" onclick="confirm()">✓ 決定</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 編集画面 -->
+        <div id="editScreen" class="section hidden">
+            <h2 class="section-title">写真を編集</h2>
+            <p class="section-subtitle">背景色を選択して、証明写真を仕上げましょう</p>
+            
+            <div class="edit-container">
+                <div class="edit-preview">
+                    <div class="result-image">
+                        <img id="editImage" src="" alt="編集中の写真">
+                    </div>
+                </div>
+                
+                <div class="edit-controls">
+                    <h3 class="edit-title">背景色を選択</h3>
+                    <div class="background-options">
+                        <button class="bg-option bg-white selected" onclick="selectBackground('white')" data-bg="white">
+                            <div class="bg-preview" style="background: #ffffff; border: 1px solid #ddd;"></div>
+                            <span>白</span>
+                        </button>
+                        <button class="bg-option bg-blue" onclick="selectBackground('blue')" data-bg="blue">
+                            <div class="bg-preview" style="background: #e6f3ff;"></div>
+                            <span>水色</span>
+                        </button>
+                        <button class="bg-option bg-gray" onclick="selectBackground('gray')" data-bg="gray">
+                            <div class="bg-preview" style="background: #f5f5f5;"></div>
+                            <span>グレー</span>
+                        </button>
+                        <button class="bg-option bg-original" onclick="selectBackground('original')" data-bg="original">
+                            <div class="bg-preview" style="background: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0px;"></div>
+                            <span>元の背景</span>
+                        </button>
+                    </div>
+                    
+                    <div class="edit-tips">
+                        <h4>💡 背景色の選び方</h4>
+                        <ul>
+                            <li><strong>白</strong>: 履歴書、一般的な証明書類</li>
+                            <li><strong>水色</strong>: パスポート、国際的な書類</li>
+                            <li><strong>グレー</strong>: 運転免許証、公的書類</li>
+                            <li><strong>元の背景</strong>: 自然な仕上がり</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="backToCamera()">← 撮影に戻る</button>
+                <button class="btn btn-primary" onclick="finishEdit()">✓ 編集完了</button>
+            </div>
+        </div>
+
+        <!-- 完了画面 -->
+        <div id="completeScreen" class="section hidden">
+            <h2 class="section-title">証明写真完成！</h2>
+            <p class="section-subtitle">L版レイアウトが生成されました</p>
+            
+            <div class="result-image">
+                <img id="finalImage" src="" alt="完成した証明写真">
+            </div>
+            
+            <div class="tips-box">
+                <div class="tips-title">🖨️ 印刷ガイド</div>
+                <div style="color: #4b5563;">
+                    <div style="margin-bottom: 16px;">
+                        <strong>自宅プリンターの場合：</strong>
+                        <ul class="tips-list" style="margin-left: 16px; margin-top: 8px;">
+                            <li>• 用紙設定：L版（89mm × 127mm）</li>
+                            <li>• 印刷品質：高品質または写真品質</li>
+                            <li>• 用紙種類：写真用紙（光沢またはマット）</li>
+                            <li>• 余白設定：余白なし（フチなし印刷）</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>コンビニプリントの場合：</strong>
+                        <ul class="tips-list" style="margin-left: 16px; margin-top: 8px;">
+                            <li>• USBメモリやスマホアプリで画像を持参</li>
+                            <li>• L版サイズを選択</li>
+                            <li>• 写真用紙で印刷</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="downloadImage()">💾 画像をダウンロード</button>
+                <button class="btn btn-secondary" onclick="startOver()">🔄 最初からやり直す</button>
+            </div>
+            
+            <div class="success-message">
+                🎉 証明写真の作成が完了しました！
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedPhotoSize = '';
+        let video, canvas, capturedImage, editedImage;
+        let selectedBackground = 'white';
+        
+        const photoSizes = {
+            resume: { name: '履歴書用', width: 30, height: 40, count: 6 },
+            passport: { name: 'パスポート用', width: 35, height: 45, count: 4 },
+            license: { name: '運転免許証用', width: 24, height: 30, count: 8 },
+            mynumber: { name: 'マイナンバーカード用', width: 35, height: 45, count: 4 }
+        };
+        
+        const backgroundColors = {
+            white: '#ffffff',
+            blue: '#e6f3ff',
+            gray: '#f5f5f5',
+            original: null
+        };
+
+        function selectSize(size) {
+            // 選択状態を視覚的に表示
+            document.querySelectorAll('.size-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.target.closest('.size-card').classList.add('selected');
+            
+            selectedPhotoSize = size;
+            const sizeInfo = photoSizes[size];
+            document.getElementById('sizeInfo').textContent = `${sizeInfo.name} (${sizeInfo.width}mm × ${sizeInfo.height}mm)`;
+            
+            setTimeout(() => {
+                document.getElementById('sizeSelector').classList.add('hidden');
+                document.getElementById('cameraScreen').classList.remove('hidden');
+                startCamera();
+            }, 300);
+        }
+
+        function backToSize() {
+            document.getElementById('cameraScreen').classList.add('hidden');
+            document.getElementById('sizeSelector').classList.remove('hidden');
+            stopCamera();
+        }
+
+        function startCamera() {
+            video = document.getElementById('video');
+            canvas = document.getElementById('canvas');
+            
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(function(stream) {
+                        video.srcObject = stream;
+                        video.play();
+                    })
+                    .catch(function(error) {
+                        console.error('カメラエラー:', error);
+                        alert('カメラにアクセスできません。ブラウザでカメラの使用を許可してください。');
+                    });
+            } else {
+                alert('お使いのブラウザはカメラをサポートしていません。');
+            }
+        }
+
+        function stopCamera() {
+            if (video && video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        function capture() {
+            try {
+                console.log('Capture function called');
+                
+                if (!video || !video.videoWidth || !video.videoHeight) {
+                    console.error('Video not ready:', video);
+                    alert('カメラの準備ができていません。少し待ってから再度お試しください。');
+                    return;
+                }
+                
+                if (!canvas) {
+                    console.error('Canvas not found');
+                    return;
+                }
+                
+                const context = canvas.getContext('2d');
+                
+                // シンプルな撮影処理に戻す
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0);
+                
+                capturedImage = canvas.toDataURL('image/jpeg', 0.9);
+                console.log('Image captured successfully');
+                
+                // UIを更新
+                video.classList.add('hidden');
+                canvas.classList.remove('hidden');
+                
+                const captureBtn = document.getElementById('captureBtn');
+                const retakeBtn = document.getElementById('retakeBtn');
+                const confirmBtn = document.getElementById('confirmBtn');
+                
+                if (captureBtn) captureBtn.classList.add('hidden');
+                if (retakeBtn) retakeBtn.classList.remove('hidden');
+                if (confirmBtn) confirmBtn.classList.remove('hidden');
+                
+                console.log('UI updated successfully');
+                
+            } catch (error) {
+                console.error('Error in capture function:', error);
+                alert('撮影中にエラーが発生しました。ページをリロードしてください。');
+            }
+        }
+
+        function retake() {
+            video.classList.remove('hidden');
+            canvas.classList.add('hidden');
+            
+            document.getElementById('captureBtn').classList.remove('hidden');
+            document.getElementById('retakeBtn').classList.add('hidden');
+            document.getElementById('confirmBtn').classList.add('hidden');
+        }
+
+        function confirm() {
+            document.getElementById('cameraScreen').classList.add('hidden');
+            document.getElementById('editScreen').classList.remove('hidden');
+            document.getElementById('editImage').src = capturedImage;
+            editedImage = capturedImage; // 初期状態では元画像
+            stopCamera();
+        }
+        
+        function selectBackground(bgType) {
+            // 選択状態を更新
+            document.querySelectorAll('.bg-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.querySelector(`[data-bg="${bgType}"]`).classList.add('selected');
+            
+            selectedBackground = bgType;
+            
+            // 背景処理を適用
+            applyBackground(capturedImage, bgType);
+        }
+        
+        function applyBackground(imageSrc, bgType) {
+            const editImageElement = document.getElementById('editImage');
+            
+            if (bgType === 'original') {
+                // 元の背景をそのまま使用
+                editedImage = imageSrc;
+                editImageElement.src = editedImage;
+                return;
+            }
+            
+            try {
+                // 背景処理用のCanvasを作成
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const img = new Image();
+                img.onload = function() {
+                    try {
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        
+                        // 人物領域を抽出して背景を置き換え
+                        const processedImageData = removeBackground(img, backgroundColors[bgType]);
+                        
+                        // 処理した画像をキャンバスに描画
+                        ctx.putImageData(processedImageData, 0, 0);
+                        
+                        // 結果を保存
+                        editedImage = canvas.toDataURL('image/jpeg', 0.9);
+                        editImageElement.src = editedImage;
+                        
+                        console.log('Background removed and replaced:', bgType);
+                    } catch (error) {
+                        console.error('Error in image processing:', error);
+                        // エラー時は元画像を表示
+                        editImageElement.src = imageSrc;
+                    }
+                };
+                
+                img.onerror = function() {
+                    console.error('Error loading image');
+                    editImageElement.src = imageSrc;
+                };
+                
+                img.src = imageSrc;
+                
+            } catch (error) {
+                console.error('Error in applyBackground:', error);
+                // エラー時は元画像を表示
+                editImageElement.src = imageSrc;
+            }
+        }
+        
+        // 高度な背景除去処理
+        function removeBackground(img, bgColor) {
+            // 一時的なキャンバスで画像データを取得
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            tempCtx.drawImage(img, 0, 0);
+            
+            const imageData = tempCtx.getImageData(0, 0, img.width, img.height);
+            const data = imageData.data;
+            const width = img.width;
+            const height = img.height;
+            
+            // 背景色のRGB値を取得
+            const bgRgb = hexToRgb(bgColor);
+            
+            // 人物領域を検出するためのマスクを作成
+            const personMask = createPersonMask(data, width, height);
+            
+            // マスクを使用して背景を置き換え
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const index = (y * width + x) * 4;
+                    
+                    // 人物領域でない場合は背景色に置き換え
+                    if (!personMask[y * width + x]) {
+                        data[index] = bgRgb.r;     // R
+                        data[index + 1] = bgRgb.g; // G
+                        data[index + 2] = bgRgb.b; // B
+                        // アルファ値はそのまま
+                    } else {
+                        // 人物領域はコントラストを強化
+                        const factor = 1.1;
+                        data[index] = Math.min(255, data[index] * factor);
+                        data[index + 1] = Math.min(255, data[index + 1] * factor);
+                        data[index + 2] = Math.min(255, data[index + 2] * factor);
+                    }
+                }
+            }
+            
+            return imageData;
+        }
+        
+        // 人物領域を検出するマスクを作成（改良版）
+        function createPersonMask(data, width, height) {
+            const mask = new Array(width * height).fill(false);
+            
+            // ステップ1: 背景色を分析
+            const backgroundColors = analyzeBackgroundColors(data, width, height);
+            
+            // ステップ2: エッジ検出で輪郭を特定
+            const edges = detectEdges(data, width, height);
+            
+            // ステップ3: 色相・彩度・明度による人物領域検出
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const index = (y * width + x) * 4;
+                    const r = data[index];
+                    const g = data[index + 1];
+                    const b = data[index + 2];
+                    
+                    // 背景色との差異を計算
+                    const isBackground = isBackgroundColor(r, g, b, backgroundColors);
+                    
+                    // 人物らしい特徴を検出
+                    const isSkinTone = detectSkinTone(r, g, b);
+                    const isHair = detectHair(r, g, b);
+                    const isClothing = detectClothing(r, g, b);
+                    const hasEdge = edges[y * width + x];
+                    
+                    // 複数の条件を組み合わせて判定
+                    const personScore = calculatePersonScore({
+                        isSkinTone,
+                        isHair,
+                        isClothing,
+                        hasEdge,
+                        isBackground,
+                        x, y, width, height
+                    });
+                    
+                    if (personScore > 0.3) {
+                        mask[y * width + x] = true;
+                    }
+                }
+            }
+            
+            // ステップ4: モルフォロジー処理でノイズ除去
+            const cleanedMask = morphologyClean(mask, width, height);
+            
+            // ステップ5: 連結成分分析で最大領域を抽出
+            return extractLargestComponent(cleanedMask, width, height);
+        }
+        
+        // 背景色を分析
+        function analyzeBackgroundColors(data, width, height) {
+            const colorCounts = new Map();
+            const borderPixels = [];
+            
+            // 画像の端の色を収集
+            for (let x = 0; x < width; x++) {
+                borderPixels.push({r: data[x * 4], g: data[x * 4 + 1], b: data[x * 4 + 2]}); // 上端
+                borderPixels.push({r: data[((height-1) * width + x) * 4], g: data[((height-1) * width + x) * 4 + 1], b: data[((height-1) * width + x) * 4 + 2]}); // 下端
+            }
+            for (let y = 0; y < height; y++) {
+                borderPixels.push({r: data[y * width * 4], g: data[y * width * 4 + 1], b: data[y * width * 4 + 2]}); // 左端
+                borderPixels.push({r: data[(y * width + width - 1) * 4], g: data[(y * width + width - 1) * 4 + 1], b: data[(y * width + width - 1) * 4 + 2]}); // 右端
+            }
+            
+            // 最も多い色を背景色として特定
+            borderPixels.forEach(pixel => {
+                const key = `${Math.floor(pixel.r/10)*10},${Math.floor(pixel.g/10)*10},${Math.floor(pixel.b/10)*10}`;
+                colorCounts.set(key, (colorCounts.get(key) || 0) + 1);
+            });
+            
+            const dominantColor = Array.from(colorCounts.entries()).sort((a, b) => b[1] - a[1])[0];
+            const [r, g, b] = dominantColor[0].split(',').map(Number);
+            
+            return {r, g, b};
+        }
+        
+        // エッジ検出
+        function detectEdges(data, width, height) {
+            const edges = new Array(width * height).fill(false);
+            const threshold = 30;
+            
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    const index = (y * width + x) * 4;
+                    const current = data[index] + data[index + 1] + data[index + 2];
+                    
+                    // 周囲8ピクセルとの差分を計算
+                    let maxDiff = 0;
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            if (dx === 0 && dy === 0) continue;
+                            const neighborIndex = ((y + dy) * width + (x + dx)) * 4;
+                            const neighbor = data[neighborIndex] + data[neighborIndex + 1] + data[neighborIndex + 2];
+                            maxDiff = Math.max(maxDiff, Math.abs(current - neighbor));
+                        }
+                    }
+                    
+                    edges[y * width + x] = maxDiff > threshold;
+                }
+            }
+            
+            return edges;
+        }
+        
+        // 背景色かどうかを判定
+        function isBackgroundColor(r, g, b, bgColor) {
+            const threshold = 40;
+            const distance = Math.sqrt(
+                Math.pow(r - bgColor.r, 2) + 
+                Math.pow(g - bgColor.g, 2) + 
+                Math.pow(b - bgColor.b, 2)
+            );
+            return distance < threshold;
+        }
+        
+        // 人物スコアを計算
+        function calculatePersonScore({isSkinTone, isHair, isClothing, hasEdge, isBackground, x, y, width, height}) {
+            let score = 0;
+            
+            // 中央に近いほど高スコア
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const distanceFromCenter = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+            const maxDistance = Math.sqrt(Math.pow(centerX, 2) + Math.pow(centerY, 2));
+            const centerScore = 1 - (distanceFromCenter / maxDistance);
+            
+            if (isSkinTone) score += 0.8;
+            if (isHair) score += 0.6;
+            if (isClothing) score += 0.4;
+            if (hasEdge) score += 0.3;
+            if (isBackground) score -= 0.9;
+            
+            score += centerScore * 0.2;
+            
+            return Math.max(0, Math.min(1, score));
+        }
+        
+        // モルフォロジー処理でノイズ除去
+        function morphologyClean(mask, width, height) {
+            const cleaned = [...mask];
+            const kernelSize = 3;
+            const halfKernel = Math.floor(kernelSize / 2);
+            
+            // クロージング処理（小さな穴を埋める）
+            for (let y = halfKernel; y < height - halfKernel; y++) {
+                for (let x = halfKernel; x < width - halfKernel; x++) {
+                    let trueCount = 0;
+                    for (let dy = -halfKernel; dy <= halfKernel; dy++) {
+                        for (let dx = -halfKernel; dx <= halfKernel; dx++) {
+                            if (mask[(y + dy) * width + (x + dx)]) trueCount++;
+                        }
+                    }
+                    if (trueCount >= kernelSize * kernelSize * 0.6) {
+                        cleaned[y * width + x] = true;
+                    }
+                }
+            }
+            
+            return cleaned;
+        }
+        
+        // 最大連結成分を抽出
+        function extractLargestComponent(mask, width, height) {
+            const visited = new Array(width * height).fill(false);
+            const components = [];
+            
+            function floodFill(startX, startY) {
+                const stack = [{x: startX, y: startY}];
+                const component = [];
+                
+                while (stack.length > 0) {
+                    const {x, y} = stack.pop();
+                    if (x < 0 || x >= width || y < 0 || y >= height) continue;
+                    if (visited[y * width + x] || !mask[y * width + x]) continue;
+                    
+                    visited[y * width + x] = true;
+                    component.push({x, y});
+                    
+                    stack.push({x: x+1, y}, {x: x-1, y}, {x, y: y+1}, {x, y: y-1});
+                }
+                
+                return component;
+            }
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    if (mask[y * width + x] && !visited[y * width + x]) {
+                        const component = floodFill(x, y);
+                        if (component.length > 100) { // 最小サイズフィルター
+                            components.push(component);
+                        }
+                    }
+                }
+            }
+            
+            // 最大成分を選択
+            if (components.length === 0) return mask;
+            
+            const largestComponent = components.reduce((max, current) => 
+                current.length > max.length ? current : max
+            );
+            
+            const result = new Array(width * height).fill(false);
+            largestComponent.forEach(({x, y}) => {
+                result[y * width + x] = true;
+            });
+            
+            return result;
+        }
+        
+        // 肉色を検出
+        function detectSkinTone(r, g, b) {
+            // 肉色の範囲を定義（簡易版）
+            return (r > 95 && g > 40 && b > 20 && 
+                    r > g && r > b && 
+                    Math.abs(r - g) > 15 && 
+                    r - b > 15);
+        }
+        
+        // 髪の色を検出
+        function detectHair(r, g, b) {
+            const brightness = (r + g + b) / 3;
+            // 暗い色（黒髪、茶髪）または明るい色（金髪）
+            return brightness < 80 || (r > 150 && g > 120 && b < 100);
+        }
+        
+        // 服の色を検出
+        function detectClothing(r, g, b, brightness) {
+            // 一般的な服の色範囲（背景とは異なる色）
+            return brightness > 50 && brightness < 200 && 
+                   (Math.abs(r - g) > 20 || Math.abs(g - b) > 20 || Math.abs(r - b) > 20);
+        }
+        
+        // マスクを拡張してエッジを滑らかにする
+        function expandMask(mask, centerX, centerY, width, height, radius) {
+            for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
+                    const x = centerX + dx;
+                    const y = centerY + dy;
+                    if (x >= 0 && x < width && y >= 0 && y < height) {
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance <= radius) {
+                            mask[y * width + x] = true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 16進数色をRGBに変換するヘルパー関数
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+        
+
+        
+        function backToCamera() {
+            document.getElementById('editScreen').classList.add('hidden');
+            document.getElementById('cameraScreen').classList.remove('hidden');
+            
+            // カメラ状態をリセット
+            retake();
+        }
+        
+        function finishEdit() {
+            document.getElementById('editScreen').classList.add('hidden');
+            document.getElementById('completeScreen').classList.remove('hidden');
+            
+            // L版レイアウトを生成
+            generateLSizeLayout(editedImage, selectedPhotoSize);
+        }
+
+        function downloadImage() {
+            if (!capturedImage) {
+                alert('画像が見つかりません。');
+                return;
+            }
+            
+            // L版レイアウト画像を生成
+            generateLSizeLayout(capturedImage, selectedPhotoSize);
+        }
+        
+        function generateLSizeLayout(imageSrc, sizeKey) {
+            const sizeInfo = photoSizes[sizeKey];
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // L版サイズ（89mm × 127mm）を300DPIでピクセル変換
+            const dpi = 300;
+            const lSizeWidthPx = Math.round((89 / 25.4) * dpi);  // 約1051px
+            const lSizeHeightPx = Math.round((127 / 25.4) * dpi); // 約1500px
+            
+            canvas.width = lSizeWidthPx;
+            canvas.height = lSizeHeightPx;
+            
+            // 白背景
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 証明写真サイズをピクセル変換
+            const photoWidthPx = Math.round((sizeInfo.width / 25.4) * dpi);
+            const photoHeightPx = Math.round((sizeInfo.height / 25.4) * dpi);
+            
+            const img = new Image();
+            img.onload = function() {
+                // レイアウト計算
+                const margin = Math.round((3 / 25.4) * dpi); // 3mmマージン
+                const cols = Math.floor((canvas.width - margin) / (photoWidthPx + margin));
+                const rows = Math.floor((canvas.height - margin) / (photoHeightPx + margin));
+                const maxPhotos = Math.min(cols * rows, sizeInfo.count);
+                
+                // 中央揃えのための開始位置計算
+                const actualCols = Math.min(cols, maxPhotos);
+                const actualRows = Math.ceil(maxPhotos / actualCols);
+                const totalWidth = actualCols * photoWidthPx + (actualCols - 1) * margin;
+                const totalHeight = actualRows * photoHeightPx + (actualRows - 1) * margin;
+                const startX = (canvas.width - totalWidth) / 2;
+                const startY = (canvas.height - totalHeight) / 2;
+                
+                // 写真を配置
+                for (let i = 0; i < maxPhotos; i++) {
+                    const col = i % actualCols;
+                    const row = Math.floor(i / actualCols);
+                    const x = startX + col * (photoWidthPx + margin);
+                    const y = startY + row * (photoHeightPx + margin);
+                    
+                    // 写真を描画（アスペクト比を保持してトリミング）
+                    const scale = Math.max(photoWidthPx / img.width, photoHeightPx / img.height);
+                    const scaledWidth = img.width * scale;
+                    const scaledHeight = img.height * scale;
+                    const offsetX = (scaledWidth - photoWidthPx) / 2;
+                    const offsetY = (scaledHeight - photoHeightPx) / 2;
+                    
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(x, y, photoWidthPx, photoHeightPx);
+                    ctx.clip();
+                    ctx.drawImage(img, x - offsetX, y - offsetY, scaledWidth, scaledHeight);
+                    ctx.restore();
+                    
+                    // トンボ（切り取り線）を描画
+                    ctx.strokeStyle = '#cccccc';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    ctx.strokeRect(x, y, photoWidthPx, photoHeightPx);
+                    ctx.setLineDash([]);
+                }
+                
+                // L版レイアウト画像をダウンロード
+                const layoutDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                const link = document.createElement('a');
+                const date = new Date().toISOString().split('T')[0];
+                link.download = `証明写真_L版_${sizeInfo.name}_${sizeInfo.count}枚_${date}.jpg`;
+                link.href = layoutDataUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // プレビュー更新
+                updateLayoutPreview(layoutDataUrl, sizeInfo);
+            };
+            
+            img.src = imageSrc;
+        }
+        
+        function updateLayoutPreview(layoutImageSrc, sizeInfo) {
+            const finalImage = document.getElementById('finalImage');
+            finalImage.src = layoutImageSrc;
+            
+            // 完了メッセージを更新
+            const successMessage = document.querySelector('.success-message');
+            successMessage.innerHTML = `🎉 L版レイアウトが完成しました！${sizeInfo.name} ${sizeInfo.count}枚配置`;
+        }
+
+        function startOver() {
+            document.getElementById('completeScreen').classList.add('hidden');
+            document.getElementById('sizeSelector').classList.remove('hidden');
+            
+            // リセット
+            selectedPhotoSize = '';
+            capturedImage = '';
+            
+            // 選択状態をクリア
+            document.querySelectorAll('.size-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // ボタン状態をリセット
+            document.getElementById('captureBtn').classList.remove('hidden');
+            document.getElementById('retakeBtn').classList.add('hidden');
+            document.getElementById('confirmBtn').classList.add('hidden');
+            
+            video.classList.remove('hidden');
+            canvas.classList.add('hidden');
+        }
+
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Pashatto Print が読み込まれました');
+        });
+    </script>
+</body>
+</html>
