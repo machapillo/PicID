@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import SizeSelector from '@/components/SizeSelector';
 import CameraCapture from '@/components/CameraCapture';
 import PhotoEditor from '@/components/PhotoEditor';
@@ -14,19 +14,46 @@ export default function Home() {
   const [capturedImage, setCapturedImage] = useState<string>('');
   const [editedImage, setEditedImage] = useState<string>('');
 
+  // 初期化：現在のステップを履歴に反映し、戻る/進むで遷移できるように
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // 初期状態を書き換え
+    window.history.replaceState({ step: 'size' }, '');
+    const onPopState = (e: PopStateEvent) => {
+      const step = (e.state && e.state.step) as AppStep | undefined;
+      if (step) {
+        setCurrentStep(step);
+      } else {
+        // state が無い場合は一段戻す挙動にフォールバック
+        setCurrentStep((prev) => (prev === 'layout' ? 'editor' : prev === 'editor' ? 'camera' : 'size'));
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
   const handleSizeSelect = (size: string) => {
     setSelectedSize(size);
     setCurrentStep('camera');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ step: 'camera' }, '');
+    }
   };
 
   const handleCapture = (image: string) => {
     setCapturedImage(image);
     setCurrentStep('editor');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ step: 'editor' }, '');
+    }
   };
 
   const handleEdit = (imageSrc: string) => {
     setEditedImage(imageSrc);
     setCurrentStep('layout');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ step: 'layout' }, '');
+    }
   };
 
   const handleBack = () => {
@@ -40,6 +67,10 @@ export default function Home() {
       case 'layout':
         setCurrentStep('editor');
         break;
+    }
+    if (typeof window !== 'undefined') {
+      // ブラウザの戻ると同じ感覚で1つ戻す
+      window.history.back();
     }
   };
 
