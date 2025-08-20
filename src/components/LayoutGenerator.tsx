@@ -59,16 +59,18 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
 
     const img = new Image();
     img.onload = () => {
-      // マージン（mm）決定：自動（2〜6mmから最大配置枚数） or 手動
+      // マージン（mm）決定：自動（1〜15mmから最大配置枚数） or 手動
       const mmToPx = (mm: number) => Math.round((mm / 25.4) * dpi);
       let chosen = { marginMm: 5, cols: 0, rows: 0, count: 0 };
 
       if (useAutoMargin) {
-        for (let m = 2; m <= 6; m++) {
+        for (let m = 1; m <= 15; m++) {
           const marginPx = mmToPx(m);
-          const cols = Math.floor((canvasWidth - marginPx) / (photoWidthPx + marginPx));
-          const rows = Math.floor((canvasHeight - marginPx) / (photoHeightPx + marginPx));
-          const count = Math.max(0, cols) * Math.max(0, rows);
+          // 外側余白も margin として確保する前提
+          // 制約: cols*(W+M) <= canvasWidth - M  => cols <= floor((canvasWidth - M)/(W+M))
+          const cols = Math.max(0, Math.floor((canvasWidth - marginPx) / (photoWidthPx + marginPx)));
+          const rows = Math.max(0, Math.floor((canvasHeight - marginPx) / (photoHeightPx + marginPx)));
+          const count = cols * rows;
           if (count > chosen.count) {
             chosen = { marginMm: m, cols, rows, count };
           }
@@ -81,11 +83,11 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
           chosen = { marginMm: m, cols, rows, count: cols * rows };
         }
       } else {
-        const m = Math.min(10, Math.max(2, Math.round(manualMarginMm)));
+        const m = Math.min(15, Math.max(1, Math.round(manualMarginMm)));
         const marginPx = mmToPx(m);
-        const cols = Math.floor((canvasWidth - marginPx) / (photoWidthPx + marginPx));
-        const rows = Math.floor((canvasHeight - marginPx) / (photoHeightPx + marginPx));
-        const count = Math.max(0, cols) * Math.max(0, rows);
+        const cols = Math.max(0, Math.floor((canvasWidth - marginPx) / (photoWidthPx + marginPx)));
+        const rows = Math.max(0, Math.floor((canvasHeight - marginPx) / (photoHeightPx + marginPx)));
+        const count = cols * rows;
         chosen = { marginMm: m, cols, rows, count };
       }
 
@@ -95,11 +97,13 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
       // L版に入るだけ最大枚数配置
       const maxPhotos = cols * rows;
 
-      // 中央揃えのための開始位置計算
-      const totalWidth = cols * photoWidthPx + Math.max(0, cols - 1) * margin;
-      const totalHeight = rows * photoHeightPx + Math.max(0, rows - 1) * margin;
-      const startX = (canvasWidth - totalWidth) / 2;
-      const startY = (canvasHeight - totalHeight) / 2;
+      // 外側にも margin を確保するレイアウト
+      // 制約に合わせた想定総幅: cols*W + (cols+1)*M, 総高: rows*H + (rows+1)*M
+      // 左上の開始位置は外側余白 = margin を確保
+      const totalWidth = cols * photoWidthPx + Math.max(0, cols + 1) * margin;
+      const totalHeight = rows * photoHeightPx + Math.max(0, rows + 1) * margin;
+      const startX = margin; // 左外側余白
+      const startY = margin; // 上外側余白
 
       // 写真を配置
       for (let i = 0; i < maxPhotos; i++) {
@@ -170,7 +174,7 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
     };
 
     img.src = imageSrc;
-  }, [canvasRef, imageSrc, sizeInfo]);
+  }, [canvasRef, imageSrc, sizeInfo, useAutoMargin, manualMarginMm, showScale]);
 
   useEffect(() => {
     generateLayout();
@@ -277,7 +281,7 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
                 checked={useAutoMargin}
                 onChange={() => setUseAutoMargin(true)}
               />
-              <label htmlFor="auto-margin" className="text-gray-800">余白 自動（2〜6mmで最適化）</label>
+              <label htmlFor="auto-margin" className="text-gray-800">余白 自動（1〜15mmで最適化）</label>
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -291,8 +295,8 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
               <label htmlFor="manual-margin" className="text-gray-800">余白 手動:</label>
               <input
                 type="range"
-                min={2}
-                max={10}
+                min={1}
+                max={15}
                 value={manualMarginMm}
                 onChange={(e) => setManualMarginMm(Number(e.target.value))}
                 disabled={useAutoMargin}
