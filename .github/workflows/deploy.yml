@@ -27,7 +27,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "20"
           cache: npm
 
       - name: Configure Pages
@@ -57,9 +57,6 @@ jobs:
     permissions:
       pages: write
       id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

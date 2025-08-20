@@ -25,6 +25,10 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // 選択された余白（mm）を表示用に保持
   const [usedMarginMm, setUsedMarginMm] = useState<number>(5);
+  // UI: スケール描画の有無とマージン自動/手動
+  const [showScale, setShowScale] = useState<boolean>(false);
+  const [useAutoMargin, setUseAutoMargin] = useState<boolean>(true);
+  const [manualMarginMm, setManualMarginMm] = useState<number>(5);
 
   const sizeInfo = PHOTO_SIZES[selectedSize as keyof typeof PHOTO_SIZES];
 
@@ -55,33 +59,39 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
 
     const img = new Image();
     img.onload = () => {
-      // レイアウト計算（2〜6mmの範囲で最も多く入るマージンを選択）
+      // マージン（mm）決定：自動（2〜6mmから最大配置枚数） or 手動
       const mmToPx = (mm: number) => Math.round((mm / 25.4) * dpi);
-      let best = { marginMm: 5, cols: 0, rows: 0, count: 0 };
-      for (let m = 2; m <= 6; m++) {
+      let chosen = { marginMm: 5, cols: 0, rows: 0, count: 0 };
+
+      if (useAutoMargin) {
+        for (let m = 2; m <= 6; m++) {
+          const marginPx = mmToPx(m);
+          const cols = Math.floor((canvasWidth - marginPx) / (photoWidthPx + marginPx));
+          const rows = Math.floor((canvasHeight - marginPx) / (photoHeightPx + marginPx));
+          const count = Math.max(0, cols) * Math.max(0, rows);
+          if (count > chosen.count) {
+            chosen = { marginMm: m, cols, rows, count };
+          }
+        }
+        if (chosen.count === 0) {
+          const m = 5;
+          const marginPx = mmToPx(m);
+          const cols = Math.max(0, Math.floor((canvasWidth - marginPx) / (photoWidthPx + marginPx)));
+          const rows = Math.max(0, Math.floor((canvasHeight - marginPx) / (photoHeightPx + marginPx)));
+          chosen = { marginMm: m, cols, rows, count: cols * rows };
+        }
+      } else {
+        const m = Math.min(10, Math.max(2, Math.round(manualMarginMm)));
         const marginPx = mmToPx(m);
         const cols = Math.floor((canvasWidth - marginPx) / (photoWidthPx + marginPx));
         const rows = Math.floor((canvasHeight - marginPx) / (photoHeightPx + marginPx));
         const count = Math.max(0, cols) * Math.max(0, rows);
-        if (count > best.count) {
-          best = { marginMm: m, cols, rows, count };
-        }
-      }
-      if (best.count === 0) {
-        // フォールバック
-        const marginPx = mmToPx(5);
-        best = {
-          marginMm: 5,
-          cols: Math.max(0, Math.floor((canvasWidth - marginPx) / (photoWidthPx + marginPx))),
-          rows: Math.max(0, Math.floor((canvasHeight - marginPx) / (photoHeightPx + marginPx))),
-          count: 0,
-        };
-        best.count = best.cols * best.rows;
+        chosen = { marginMm: m, cols, rows, count };
       }
 
-      const margin = mmToPx(best.marginMm);
-      const cols = best.cols;
-      const rows = best.rows;
+      const margin = mmToPx(chosen.marginMm);
+      const cols = chosen.cols;
+      const rows = chosen.rows;
       // L版に入るだけ最大枚数配置
       const maxPhotos = cols * rows;
 
@@ -124,11 +134,38 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
         ctx.strokeRect(x, y, photoWidthPx, photoHeightPx);
       }
 
+      // 10mmスケールマーカー（任意）
+      if (showScale) {
+        const tenMmPx = Math.round((10 / 25.4) * dpi);
+        const pad = Math.round((5 / 25.4) * dpi);
+        const sx = pad;
+        const sy = canvasHeight - pad * 2;
+        ctx.setLineDash([]);
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 2;
+        // ベースライン
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + tenMmPx, sy);
+        ctx.stroke();
+        // 端の目盛り
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - pad / 2);
+        ctx.lineTo(sx, sy + pad / 2);
+        ctx.moveTo(sx + tenMmPx, sy - pad / 2);
+        ctx.lineTo(sx + tenMmPx, sy + pad / 2);
+        ctx.stroke();
+        // ラベル
+        ctx.fillStyle = '#333333';
+        ctx.font = `${Math.max(10, Math.round(pad * 0.7))}px sans-serif`;
+        ctx.fillText('10mm', sx + tenMmPx + Math.round(pad * 0.3), sy + 4);
+      }
+
       // レイアウト画像を生成
       const layoutDataUrl = canvas.toDataURL('image/jpeg', 0.9);
       setLayoutImage(layoutDataUrl);
       setPlacedCount(maxPhotos);
-      setUsedMarginMm(best.marginMm);
+      setUsedMarginMm(chosen.marginMm);
       setIsGenerating(false);
     };
 
@@ -215,6 +252,65 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
           <p>L版サイズ: 89mm × 127mm</p>
           <p>写真サイズ: {sizeInfo?.width}mm × {sizeInfo?.height}mm</p>
           <p>配置枚数: {placedCount}枚（余白 {usedMarginMm}mm）</p>
+        </div>
+
+        {/* オプション設定 */}
+        <div className="mt-6 bg-gray-50 p-4 rounded-xl border text-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <input
+              id="scale-toggle"
+              type="checkbox"
+              className="w-4 h-4"
+              checked={showScale}
+              onChange={(e) => setShowScale(e.target.checked)}
+            />
+            <label htmlFor="scale-toggle" className="text-gray-800">10mmスケールを描画</label>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex items-center gap-2 mb-3 sm:mb-0">
+              <input
+                id="auto-margin"
+                type="radio"
+                name="margin-mode"
+                className="w-4 h-4"
+                checked={useAutoMargin}
+                onChange={() => setUseAutoMargin(true)}
+              />
+              <label htmlFor="auto-margin" className="text-gray-800">余白 自動（2〜6mmで最適化）</label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                id="manual-margin"
+                type="radio"
+                name="margin-mode"
+                className="w-4 h-4"
+                checked={!useAutoMargin}
+                onChange={() => setUseAutoMargin(false)}
+              />
+              <label htmlFor="manual-margin" className="text-gray-800">余白 手動:</label>
+              <input
+                type="range"
+                min={2}
+                max={10}
+                value={manualMarginMm}
+                onChange={(e) => setManualMarginMm(Number(e.target.value))}
+                disabled={useAutoMargin}
+                className="w-40"
+              />
+              <span className={`w-10 text-right ${useAutoMargin ? 'text-gray-400' : 'text-gray-800'}`}>{manualMarginMm}mm</span>
+            </div>
+          </div>
+
+          <div className="mt-3 text-right">
+            <button
+              onClick={generateLayout}
+              disabled={isGenerating}
+              className="px-4 py-2 bg-white text-gray-800 rounded-lg border hover:bg-gray-100 disabled:opacity-50"
+            >
+              再生成
+            </button>
+          </div>
         </div>
       </div>
 
