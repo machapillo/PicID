@@ -24,6 +24,10 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
   const [error, setError] = useState<string>('');
   // 取得したビデオの実解像度（参考用）
   const [videoResolution, setVideoResolution] = useState<{w:number;h:number}>({w:0,h:0});
+  // カメラ切替・列挙
+  const [cameraFacing, setCameraFacing] = useState<'user' | 'environment'>('user');
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
 
   const sizeInfo = PHOTO_SIZES[selectedSize as keyof typeof PHOTO_SIZES];
 
@@ -34,6 +38,29 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
     }, 2000);
 
     return () => clearTimeout(timer);
+  }, []);
+
+  // カメラデバイス列挙（権限取得後に行う）
+  useEffect(() => {
+    const enumerate = async () => {
+      try {
+        if (!navigator.mediaDevices?.enumerateDevices) return;
+        // 権限未許可の環境では label が空になるため、一度 getUserMedia を呼び出す
+        await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        const list = await navigator.mediaDevices.enumerateDevices();
+        const cams = list.filter((d) => d.kind === 'videoinput');
+        setDevices(cams);
+        // 既定で environment があればそちらを選ぶ（他人撮影向け）
+        const env = cams.find((d) => /back|rear|environment/i.test(d.label));
+        if (env && !selectedDeviceId) {
+          setSelectedDeviceId(env.deviceId);
+          setCameraFacing('environment');
+        }
+      } catch (e) {
+        // 列挙できなくても致命ではない
+      }
+    };
+    enumerate();
   }, []);
 
     const capture = useCallback(() => {
@@ -107,6 +134,49 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
 
       {/* 撮影エリア */}
       <div className="max-w-md mx-auto">
+        {/* カメラ選択コントロール */}
+        {!imageSrc && (
+          <div className="mb-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-700">カメラ</label>
+              <select
+                className="border rounded-md px-2 py-1 text-sm"
+                value={selectedDeviceId}
+                onChange={(e) => setSelectedDeviceId(e.target.value)}
+              >
+                <option value="">自動（前面/背面）</option>
+                {devices.map((d, i) => (
+                  <option key={d.deviceId || i} value={d.deviceId}>
+                    {d.label || `カメラ ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">向き</span>
+              <button
+                type="button"
+                onClick={() => { setSelectedDeviceId(''); setCameraFacing('user'); }}
+                className={`px-3 py-1.5 rounded-md text-sm border ${selectedDeviceId==='' && cameraFacing==='user' ? 'bg-ocean-blue text-white border-ocean-blue' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                title="前面カメラ"
+              >前面</button>
+              <button
+                type="button"
+                onClick={() => { setSelectedDeviceId(''); setCameraFacing('environment'); }}
+                className={`px-3 py-1.5 rounded-md text-sm border ${selectedDeviceId==='' && cameraFacing==='environment' ? 'bg-ocean-blue text-white border-ocean-blue' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                title="背面カメラ（外向き）"
+              >背面</button>
+              {selectedDeviceId && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDeviceId('')}
+                  className="px-3 py-1.5 rounded-md text-sm border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                  title="デバイス指定を解除して自動にする"
+                >自動に戻す</button>
+              )}
+            </div>
+          </div>
+        )}
         <div className="relative aspect-[3/4] bg-gray-100 rounded-2xl overflow-hidden shadow-lg">
           {!imageSrc ? (
             <>
@@ -123,11 +193,18 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
                 className="w-full h-full object-cover"
-                videoConstraints={{
-                  facingMode: 'user',
-                  width: { ideal: 1280 },
-                  height: { ideal: 1706 }
-                }}
+                videoConstraints={selectedDeviceId
+                  ? {
+                      deviceId: { exact: selectedDeviceId },
+                      width: { ideal: 1280 },
+                      height: { ideal: 1706 }
+                    }
+                  : {
+                      facingMode: cameraFacing,
+                      width: { ideal: 1280 },
+                      height: { ideal: 1706 }
+                    }
+                }
                 onUserMedia={() => {
                   setIsLoading(false);
                   try {
