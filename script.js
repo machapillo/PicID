@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Shows the specified section and hides others.
      * @param {string} stepName - The key of the section to show ('size', 'capture', 'edit', 'layout').
      */
-        /**
+    /**
      * Stops the webcam stream.
      */
     function stopWebcam() {
@@ -79,6 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function parseHashStep() {
+        const raw = (window.location.hash || '').replace(/^#/, '');
+        const allowed = ['size', 'capture', 'edit', 'layout'];
+        return allowed.includes(raw) ? raw : 'size';
+    }
+
     // --- Event Listeners ---
 
     // Size selection buttons
@@ -90,16 +96,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: btn.textContent
             };
                         console.log('Selected size:', selectedSize);
-            showStep('capture');
+            // 進む: ハッシュを書き換えて履歴に積む
+            window.location.hash = '#capture';
         });
     });
 
     // Back buttons
-    buttons.backToSizeBtn.addEventListener('click', () => showStep('size'));
-    buttons.backToCaptureBtn.addEventListener('click', () => showStep('capture'));
-    buttons.backToEditBtn.addEventListener('click', () => showStep('edit'));
+    buttons.backToSizeBtn.addEventListener('click', () => window.history.back());
+    buttons.backToCaptureBtn.addEventListener('click', () => window.history.back());
+    buttons.backToEditBtn.addEventListener('click', () => window.history.back());
+
+    // ハッシュ変更でUIを同期
+    window.addEventListener('hashchange', () => {
+        const step = parseHashStep();
+        showStep(step);
+    });
 
     // --- Initial Setup ---
-    showStep('size');
+    // 初期表示: ハッシュが無ければ "#size" を現在の履歴に設定（新規履歴を作らない）
+    if (!window.location.hash) {
+        window.history.replaceState({}, '', '#size');
+        showStep('size');
+    } else {
+        showStep(parseHashStep());
+    }
 
 });
