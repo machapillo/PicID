@@ -18,25 +18,32 @@ export default function Home() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     // 初期状態を書き換え
-    window.history.replaceState({ step: 'size' }, '');
-    const onPopState = (e: PopStateEvent) => {
-      const step = (e.state && e.state.step) as AppStep | undefined;
-      if (step) {
-        setCurrentStep(step);
-      } else {
-        // state が無い場合は一段戻す挙動にフォールバック
-        setCurrentStep((prev) => (prev === 'layout' ? 'editor' : prev === 'editor' ? 'camera' : 'size'));
-      }
+    const initialStep = (window.location.hash?.slice(1) as AppStep) || 'size';
+    setCurrentStep(initialStep);
+    window.history.replaceState({ step: initialStep }, '', `#${initialStep}`);
+    const syncFromLocation = () => {
+      const step = (window.location.hash?.slice(1) as AppStep) || undefined;
+      if (step) setCurrentStep(step);
+    };
+    const onPopState = (_e: PopStateEvent) => {
+      syncFromLocation();
+    };
+    const onHashChange = () => {
+      syncFromLocation();
     };
     window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
+    window.addEventListener('hashchange', onHashChange);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      window.removeEventListener('hashchange', onHashChange);
+    };
   }, []);
 
   const handleSizeSelect = (size: string) => {
     setSelectedSize(size);
     setCurrentStep('camera');
     if (typeof window !== 'undefined') {
-      window.history.pushState({ step: 'camera' }, '');
+      window.history.pushState({ step: 'camera' }, '', '#camera');
     }
   };
 
@@ -44,7 +51,7 @@ export default function Home() {
     setCapturedImage(image);
     setCurrentStep('editor');
     if (typeof window !== 'undefined') {
-      window.history.pushState({ step: 'editor' }, '');
+      window.history.pushState({ step: 'editor' }, '', '#editor');
     }
   };
 
@@ -52,22 +59,11 @@ export default function Home() {
     setEditedImage(imageSrc);
     setCurrentStep('layout');
     if (typeof window !== 'undefined') {
-      window.history.pushState({ step: 'layout' }, '');
+      window.history.pushState({ step: 'layout' }, '', '#layout');
     }
   };
 
   const handleBack = () => {
-    switch (currentStep) {
-      case 'camera':
-        setCurrentStep('size');
-        break;
-      case 'editor':
-        setCurrentStep('camera');
-        break;
-      case 'layout':
-        setCurrentStep('editor');
-        break;
-    }
     if (typeof window !== 'undefined') {
       // ブラウザの戻ると同じ感覚で1つ戻す
       window.history.back();

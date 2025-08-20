@@ -18,9 +18,12 @@ const PHOTO_SIZES = {
 
 export default function CameraCapture({ selectedSize, onCapture, onBack }: CameraCaptureProps) {
   const webcamRef = useRef<any>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imageSrc, setImageSrc] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  // 取得したビデオの実解像度（参考用）
+  const [videoResolution, setVideoResolution] = useState<{w:number;h:number}>({w:0,h:0});
 
   const sizeInfo = PHOTO_SIZES[selectedSize as keyof typeof PHOTO_SIZES];
 
@@ -34,19 +37,31 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
   }, []);
 
     const capture = useCallback(() => {
-    if (webcamRef.current) {
+    const videoEl = (webcamRef.current as any)?.video as HTMLVideoElement | undefined;
+    const canvas = canvasRef.current;
+    if (videoEl && canvas) {
       try {
-        const imageSrc = webcamRef.current.getScreenshot();
-        if (!imageSrc) {
+        const vw = videoEl.videoWidth;
+        const vh = videoEl.videoHeight;
+        if (!vw || !vh) {
           setError('写真の撮影に失敗しました。もう一度お試しください。');
           return;
         }
-        setImageSrc(imageSrc);
+        canvas.width = vw;
+        canvas.height = vh;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          setError('カメラエラーが発生しました。');
+          return;
+        }
+        ctx.drawImage(videoEl, 0, 0, vw, vh);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        setImageSrc(dataUrl);
       } catch (err) {
         setError('カメラエラーが発生しました。');
       }
     }
-  }, [webcamRef]);
+  }, []);
 
     const retake = useCallback(() => {
     setImageSrc('');
@@ -110,10 +125,18 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
                 className="w-full h-full object-cover"
                 videoConstraints={{
                   facingMode: 'user',
-                  width: 480,
-                  height: 640
+                  width: { ideal: 1280 },
+                  height: { ideal: 1706 }
                 }}
-                onUserMedia={() => setIsLoading(false)}
+                onUserMedia={() => {
+                  setIsLoading(false);
+                  try {
+                    const videoEl = (webcamRef.current as any)?.video as HTMLVideoElement | undefined;
+                    if (videoEl && videoEl.videoWidth) {
+                      setVideoResolution({ w: videoEl.videoWidth, h: videoEl.videoHeight });
+                    }
+                  } catch {}
+                }}
                 onUserMediaError={() => {
                   setError('カメラにアクセスできません。カメラの許可を確認してください。');
                   setIsLoading(false);
@@ -216,6 +239,8 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
           </>
         )}
       </div>
+      {/* オフスクリーンキャプチャ用キャンバス */}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }
