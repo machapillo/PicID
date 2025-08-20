@@ -10,10 +10,10 @@ interface CameraCaptureProps {
 }
 
 const PHOTO_SIZES = {
-  resume: { name: '履歴書用', width: 40, height: 30 },
-  passport: { name: 'パスポート用', width: 45, height: 35 },
-  license: { name: '運転免許証用', width: 30, height: 24 },
-  mynumber: { name: 'マイナンバーカード用', width: 45, height: 35 },
+  resume: { name: '履歴書用', width: 30, height: 40 },
+  passport: { name: 'パスポート用', width: 35, height: 45 },
+  license: { name: '運転免許証用', width: 24, height: 30 },
+  mynumber: { name: 'マイナンバーカード用', width: 35, height: 45 },
 };
 
 export default function CameraCapture({ selectedSize, onCapture, onBack }: CameraCaptureProps) {
@@ -58,6 +58,30 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
       onCapture(imageSrc);
     }
   }, [imageSrc, onCapture]);
+
+  // キーボードショートカット（ハンドラ定義後に設置）
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        if (!imageSrc && !isLoading && !error) {
+          e.preventDefault();
+          capture();
+        }
+      } else if (e.code === 'Enter') {
+        if (imageSrc) {
+          e.preventDefault();
+          confirm();
+        }
+      } else if (e.key === 'r' || e.key === 'R') {
+        if (imageSrc) {
+          e.preventDefault();
+          retake();
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [imageSrc, isLoading, error, capture, confirm, retake]);
 
   return (
     <div className="space-y-8">
@@ -106,10 +130,23 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
                   </div>
                   
                   {/* ガイドテキスト */}
-                  <div className="absolute bottom-4 left-4 right-4 text-center">
-                                      <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-lg text-sm">顔をガイドラインに合わせてください</div>
+                  <div className="absolute bottom-20 left-4 right-4 text-center">
+                    <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-lg text-sm">顔をガイドラインに合わせてください</div>
                   </div>
                 </div>
+              </div>
+
+              {/* フローティング撮影ボタン（プレビュー上） */}
+              <div className="absolute inset-x-0 bottom-4 flex justify-center z-20">
+                <button
+                  onClick={capture}
+                  disabled={isLoading || !!error}
+                  className="pointer-events-auto w-16 h-16 rounded-full bg-ocean-blue text-white shadow-lg hover:bg-blue-600 active:scale-95 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  aria-label="撮影する"
+                  title="撮影する（Space キーでも撮影）"
+                >
+                  📷
+                </button>
               </div>
             </>
           ) : (
