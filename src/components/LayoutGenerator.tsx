@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface LayoutGeneratorProps {
   imageSrc: string;
@@ -21,15 +21,12 @@ const L_SIZE = { width: 89, height: 127 };
 export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: LayoutGeneratorProps) {
   const [layoutImage, setLayoutImage] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [placedCount, setPlacedCount] = useState<number>(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const sizeInfo = PHOTO_SIZES[selectedSize as keyof typeof PHOTO_SIZES];
 
-  useEffect(() => {
-    generateLayout();
-  }, [imageSrc, selectedSize]);
-
-  const generateLayout = async () => {
+  const generateLayout = useCallback(async () => {
     if (!canvasRef.current || !sizeInfo) return;
 
     setIsGenerating(true);
@@ -110,7 +107,11 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
     };
 
     img.src = imageSrc;
-  };
+  }, [canvasRef, imageSrc, sizeInfo]);
+
+  useEffect(() => {
+    generateLayout();
+  }, [generateLayout]);
 
   const downloadImage = () => {
     if (!layoutImage) return;
@@ -156,7 +157,7 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
           L版レイアウト完成！
         </h2>
         <p className="text-lg text-gray-600">
-          {sizeInfo?.name} を {sizeInfo?.count}枚配置しました
+          {sizeInfo?.name} を {placedCount}枚配置しました
         </p>
       </div>
 
