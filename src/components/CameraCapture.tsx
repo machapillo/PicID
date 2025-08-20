@@ -123,25 +123,27 @@ export default function CameraCapture({ selectedSize, onCapture, onBack }: Camer
               {/* 撮影ガイド */}
               <div className="absolute inset-0 pointer-events-none">
                 <div className="relative w-full h-full">
-                  {/* 顔のガイドライン */}
-                  <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 w-48 h-64 border-2 border-white border-dashed rounded-lg opacity-70">
-                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-32 h-40 border border-white rounded-full opacity-50"></div>
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-40 h-8 border border-white rounded opacity-30"></div>
+                  {/* 顔のガイドライン（さらに軽く） */}
+                  <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 w-48 h-64 border-2 border-white/40 border-dashed rounded-lg">
+                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-32 h-40 border border-white/30 rounded-full"></div>
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-40 h-8 border border-white/20 rounded"></div>
                   </div>
                   
-                  {/* ガイドテキスト */}
-                  <div className="absolute bottom-20 left-4 right-4 text-center">
-                    <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-lg text-sm">顔をガイドラインに合わせてください</div>
+                  {/* ガイドテキスト（ガラス風チップ） */}
+                  <div className="absolute bottom-24 left-4 right-4 text-center">
+                    <div className="inline-block bg-white/15 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-sm ring-1 ring-white/25 shadow-md">
+                      顔をガイドラインに合わせてください
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* フローティング撮影ボタン（プレビュー上） */}
-              <div className="absolute inset-x-0 bottom-4 flex justify-center z-20">
+              <div className="absolute inset-x-0 bottom-3 flex justify-center z-20">
                 <button
                   onClick={capture}
                   disabled={isLoading || !!error}
-                  className="pointer-events-auto w-16 h-16 rounded-full bg-ocean-blue text-white shadow-lg hover:bg-blue-600 active:scale-95 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="pointer-events-auto w-16 h-16 rounded-full bg-white/15 text-white backdrop-blur-md ring-2 ring-white/30 shadow-lg hover:bg-white/25 active:scale-95 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   aria-label="撮影する"
                   title="撮影する（Space キーでも撮影）"
                 >
