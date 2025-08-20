@@ -18,6 +18,8 @@ export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: 
   const [isProcessing, setIsProcessing] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
+  // スライダー操作中はページスクロールを抑制
+  const [isDraggingSlider, setIsDraggingSlider] = useState(false);
 
   const processImage = useCallback(async () => {
     if (!canvasRef.current || !imageSrc) return;
@@ -59,6 +61,27 @@ export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: 
     processImage();
   }, [processImage]);
 
+  // スライダー操作開始/終了でスクロール制御
+  useEffect(() => {
+    if (isDraggingSlider) {
+      const originalOverflow = document.body.style.overflow;
+      const originalTouchAction = document.body.style.touchAction as string;
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      const handleEnd = () => setIsDraggingSlider(false);
+      window.addEventListener('mouseup', handleEnd);
+      window.addEventListener('touchend', handleEnd, { passive: true });
+      window.addEventListener('touchcancel', handleEnd, { passive: true });
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.touchAction = originalTouchAction;
+        window.removeEventListener('mouseup', handleEnd);
+        window.removeEventListener('touchend', handleEnd);
+        window.removeEventListener('touchcancel', handleEnd);
+      };
+    }
+  }, [isDraggingSlider]);
+
   const handleConfirm = () => {
     if (processedImage) {
       onEdit(processedImage);
@@ -66,7 +89,7 @@ export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: 
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 overscroll-contain">
       <div className="text-center">
         <h2 className="text-3xl font-bold text-gray-800 mb-2">写真を編集</h2>
         <p className="text-lg text-gray-600">明るさ・コントラストを調整できます</p>
@@ -104,7 +127,13 @@ export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: 
             <input
               type="range" min="50" max="150" value={brightness}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBrightness(Number(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider touch-none"
+              onMouseDown={() => setIsDraggingSlider(true)}
+              onMouseUp={() => setIsDraggingSlider(false)}
+              onTouchStart={() => setIsDraggingSlider(true)}
+              onTouchEnd={() => setIsDraggingSlider(false)}
+              onTouchCancel={() => setIsDraggingSlider(false)}
+              onTouchMove={(e) => { if (isDraggingSlider) e.preventDefault(); }}
             />
           </div>
 
@@ -113,7 +142,13 @@ export default function PhotoEditor({ imageSrc, selectedSize, onEdit, onBack }: 
             <input
               type="range" min="50" max="150" value={contrast}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setContrast(Number(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider touch-none"
+              onMouseDown={() => setIsDraggingSlider(true)}
+              onMouseUp={() => setIsDraggingSlider(false)}
+              onTouchStart={() => setIsDraggingSlider(true)}
+              onTouchEnd={() => setIsDraggingSlider(false)}
+              onTouchCancel={() => setIsDraggingSlider(false)}
+              onTouchMove={(e) => { if (isDraggingSlider) e.preventDefault(); }}
             />
           </div>
 

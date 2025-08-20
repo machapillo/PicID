@@ -23,6 +23,8 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
   const [isGenerating, setIsGenerating] = useState(false);
   const [placedCount, setPlacedCount] = useState<number>(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // 選択された余白（mm）を表示用に保持
+  const [usedMarginMm, setUsedMarginMm] = useState<number>(5);
 
   const sizeInfo = PHOTO_SIZES[selectedSize as keyof typeof PHOTO_SIZES];
 
@@ -53,16 +55,39 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
 
     const img = new Image();
     img.onload = () => {
-      // レイアウト計算
-      const margin = Math.round((5 / 25.4) * dpi); // 5mmマージン
-      const cols = Math.floor((canvasWidth - margin) / (photoWidthPx + margin));
-      const rows = Math.floor((canvasHeight - margin) / (photoHeightPx + margin));
-      // L版に入るだけ最大枚数配置（countの上限は撤廃）
-      const maxPhotos = Math.max(0, cols) * Math.max(0, rows);
+      // レイアウト計算（2〜6mmの範囲で最も多く入るマージンを選択）
+      const mmToPx = (mm: number) => Math.round((mm / 25.4) * dpi);
+      let best = { marginMm: 5, cols: 0, rows: 0, count: 0 };
+      for (let m = 2; m <= 6; m++) {
+        const marginPx = mmToPx(m);
+        const cols = Math.floor((canvasWidth - marginPx) / (photoWidthPx + marginPx));
+        const rows = Math.floor((canvasHeight - marginPx) / (photoHeightPx + marginPx));
+        const count = Math.max(0, cols) * Math.max(0, rows);
+        if (count > best.count) {
+          best = { marginMm: m, cols, rows, count };
+        }
+      }
+      if (best.count === 0) {
+        // フォールバック
+        const marginPx = mmToPx(5);
+        best = {
+          marginMm: 5,
+          cols: Math.max(0, Math.floor((canvasWidth - marginPx) / (photoWidthPx + marginPx))),
+          rows: Math.max(0, Math.floor((canvasHeight - marginPx) / (photoHeightPx + marginPx))),
+          count: 0,
+        };
+        best.count = best.cols * best.rows;
+      }
+
+      const margin = mmToPx(best.marginMm);
+      const cols = best.cols;
+      const rows = best.rows;
+      // L版に入るだけ最大枚数配置
+      const maxPhotos = cols * rows;
 
       // 中央揃えのための開始位置計算
-      const totalWidth = cols * photoWidthPx + (cols - 1) * margin;
-      const totalHeight = Math.ceil(maxPhotos / cols) * photoHeightPx + (Math.ceil(maxPhotos / cols) - 1) * margin;
+      const totalWidth = cols * photoWidthPx + Math.max(0, cols - 1) * margin;
+      const totalHeight = rows * photoHeightPx + Math.max(0, rows - 1) * margin;
       const startX = (canvasWidth - totalWidth) / 2;
       const startY = (canvasHeight - totalHeight) / 2;
 
@@ -103,6 +128,7 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
       const layoutDataUrl = canvas.toDataURL('image/jpeg', 0.9);
       setLayoutImage(layoutDataUrl);
       setPlacedCount(maxPhotos);
+      setUsedMarginMm(best.marginMm);
       setIsGenerating(false);
     };
 
@@ -187,7 +213,8 @@ export default function LayoutGenerator({ imageSrc, selectedSize, onBack }: Layo
         {/* サイズ情報 */}
         <div className="mt-4 text-center text-sm text-gray-600">
           <p>L版サイズ: 89mm × 127mm</p>
-          <p>写真サイズ: {sizeInfo?.width}mm × {sizeInfo?.height}mm × {sizeInfo?.count}枚</p>
+          <p>写真サイズ: {sizeInfo?.width}mm × {sizeInfo?.height}mm</p>
+          <p>配置枚数: {placedCount}枚（余白 {usedMarginMm}mm）</p>
         </div>
       </div>
 
