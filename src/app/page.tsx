@@ -20,7 +20,10 @@ export default function Home() {
     // 初期状態を書き換え
     const initialStep = (window.location.hash?.slice(1) as AppStep) || 'size';
     setCurrentStep(initialStep);
-    window.history.replaceState({ step: initialStep }, '', `#${initialStep}`);
+    // ハッシュが無い場合は #size を現在の履歴に設定（新規エントリは作らない）
+    if (!window.location.hash) {
+      window.history.replaceState({ step: initialStep }, '', `#${initialStep}`);
+    }
     const syncFromLocation = () => {
       const step = (window.location.hash?.slice(1) as AppStep) || undefined;
       if (step) setCurrentStep(step);
@@ -41,25 +44,23 @@ export default function Home() {
 
   const handleSizeSelect = (size: string) => {
     setSelectedSize(size);
-    setCurrentStep('camera');
     if (typeof window !== 'undefined') {
-      window.history.pushState({ step: 'camera' }, '', '#camera');
+      // URLのハッシュのみを書き換え、状態更新は hashchange リスナーに任せる
+      window.location.hash = '#camera';
     }
   };
 
   const handleCapture = (image: string) => {
     setCapturedImage(image);
-    setCurrentStep('editor');
     if (typeof window !== 'undefined') {
-      window.history.pushState({ step: 'editor' }, '', '#editor');
+      window.location.hash = '#editor';
     }
   };
 
   const handleEdit = (imageSrc: string) => {
     setEditedImage(imageSrc);
-    setCurrentStep('layout');
     if (typeof window !== 'undefined') {
-      window.history.pushState({ step: 'layout' }, '', '#layout');
+      window.location.hash = '#layout';
     }
   };
 
