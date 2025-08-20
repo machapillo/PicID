@@ -5,32 +5,32 @@ import { useState } from 'react';
 const PHOTO_SIZES = {
   resume: {
     name: '履歴書用',
-    width: 40,
-    height: 30,
+    width: 30,
+    height: 40,
     unit: 'mm',
     description: '就職活動・転職活動に',
     color: 'bg-blue-50 border-blue-200 hover:border-blue-400'
   },
   passport: {
     name: 'パスポート用',
-    width: 45,
-    height: 35,
+    width: 35,
+    height: 45,
     unit: 'mm',
     description: '海外渡航申請に',
     color: 'bg-green-50 border-green-200 hover:border-green-400'
   },
   license: {
     name: '運転免許証用',
-    width: 30,
-    height: 24,
+    width: 24,
+    height: 30,
     unit: 'mm',
     description: '免許証更新・新規取得に',
     color: 'bg-orange-50 border-orange-200 hover:border-orange-400'
   },
   mynumber: {
     name: 'マイナンバーカード用',
-    width: 45,
-    height: 35,
+    width: 35,
+    height: 45,
     unit: 'mm',
     description: 'マイナンバーカード申請に',
     color: 'bg-purple-50 border-purple-200 hover:border-purple-400'

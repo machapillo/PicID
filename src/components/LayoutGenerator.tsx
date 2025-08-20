@@ -9,10 +9,10 @@ interface LayoutGeneratorProps {
 }
 
 const PHOTO_SIZES = {
-  resume: { name: '履歴書用', width: 40, height: 30, count: 4 },
-  passport: { name: 'パスポート用', width: 45, height: 35, count: 2 },
-  license: { name: '運転免許証用', width: 30, height: 24, count: 6 },
-  mynumber: { name: 'マイナンバーカード用', width: 45, height: 35, count: 2 },
+  resume:   { name: '履歴書用',       width: 30, height: 40, count: 4 },
+  passport: { name: 'パスポート用',   width: 35, height: 45, count: 2 },
+  license:  { name: '運転免許証用',   width: 24, height: 30, count: 6 },
+  mynumber: { name: 'マイナンバーカード用', width: 35, height: 45, count: 2 },
 };
 
 // L版サイズ（mm）
